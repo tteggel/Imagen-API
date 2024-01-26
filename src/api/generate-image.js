@@ -3,7 +3,7 @@ import {VITE_GOOGLE_PROJECT_ID} from '../constants.js'
 import {GoogleAuth} from 'google-auth-library'
 import express from 'express'
 
-const auth = new GoogleAuth({scopes: 'https://www.googleapis.com/auth/cloud-platform'})
+const auth = new GoogleAuth()
 
 export const POST = (req, res, next) => {
     generateImages(req.body).then(image => res.send(image), err => res.status(400).send(err.response.data))
