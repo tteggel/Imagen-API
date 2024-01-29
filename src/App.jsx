@@ -1,10 +1,7 @@
-
-import { useState } from 'react';
-import './App.css'
-import axios from "axios"
-
+import { useState } from "react"
+import "./App.css"
 import {Button, Container, Form} from "react-bootstrap"
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from "./LoadingSpinner"
 
 function App() {
   const [preview, setPreview] = useState("")
@@ -12,16 +9,24 @@ function App() {
   const [prompt, setPrompt] = useState("")
   const [error, setError] = useState("")
 
-  const generateImages = async ()=>{
+  const generateImages = async () => {
     if(prompt === "") return
     try {
-      const res = await axios.post(`/api/generate-image`, { prompt })
-      setPreview(`data:image/png;base64,${res.data}`)
+      //const instance = { prompt, image: preview ? {bytesBase64Encoded: preview.split(",")[1]} : undefined }
+      const instance = { prompt }
+      const res = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(instance)
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setPreview(`data:image/png;base64,${await res.text()}`)
       setLoading(false)
     }
     catch(err){
-      console.log(err)
-      setError(JSON.stringify(err.response.data, null, 2))
+      setError(err.message)
       setPreview("")
       setLoading(false)
     }
@@ -34,8 +39,18 @@ function App() {
     return generateImages()
   }
 
+  function previewImage(e) {
+    const reader = new FileReader()
+
+    reader.addEventListener("load", () => setPreview(reader.result), false)
+
+    if (e?.target?.files?.[0]) {
+      reader.readAsDataURL(e.target.files[0])
+    }
+  }
+
   return (
-    <Container className='container'>
+    <Container className="container">
 
     <header>
         <h1>Imagen2 API Demonstration</h1>
@@ -43,19 +58,22 @@ function App() {
     <Form>
 
       <Form.Label>Enter your prompt</Form.Label>
-      <Form.Control className='mb-4' onChange={e=>setPrompt(e.target.value)}/>
+      <Form.Control className="mb-4" onChange={e => setPrompt(e.target.value)}/>
+      {/*<Form.Control className="mb-4" type="file" onChange={previewImage}/>*/}
 
       <div className='sub-container'>
-          <Button onClick={onFormSubmit} type="submit">Generate Image</Button>
+        <Button onClick={onFormSubmit} type="submit">Generate Image</Button>
 
-          {loading && <LoadingSpinner />}
+        {loading && <LoadingSpinner/>}
 
-          {preview.length > 0 && !loading && <img src={preview} style={{ width: "1024px"}} />}
+        {preview.length > 0 && !loading && <img id="baseImage" src={preview} style={{width: "1024px"}}/>}
 
-          {error.length > 0 && !loading && <pre style={{ color: "red" }}>{error}</pre>}
+        {error.length > 0 && !loading && <pre style={{color: "red"}}>{error}</pre>}
+
+        {/*<Button onClick={e=>setPreview("")}>Clear Image</Button>*/}
       </div>
 
-      </Form>
+    </Form>
     </Container>
   )
 }
