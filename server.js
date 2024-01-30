@@ -44,12 +44,12 @@ const generateImages = async (rq) => {
             },
             body: JSON.stringify(rq)
         })
-    if (!rs.ok) throw new Error().stack = await res.text()
+    if (!rs.ok) throw new Error().stack = await rs.text()
 
     const body = await rs.json()
-    if (body?.predictions?.[0]?.bytesBase64Encoded === undefined) throw new Error().stack = "Response from Google contained no images."
+    if ((body?.predictions?.length ?? 0) === 0) throw new Error().stack = "Response from Google contained no images."
 
-    return body.predictions[0].bytesBase64Encoded
+    return body.predictions
 }
 
 const generateText = async (instance) => {

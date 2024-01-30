@@ -1,10 +1,10 @@
 import React, { useState } from "react"
 import "./App.css"
 import {
-    Button,
-    FormControl,
+    Button, Dialog,
+    FormControl, ImageList, ImageListItem,
     InputLabel, List, ListItemText,
-    MenuItem,
+    MenuItem, Popover,
     Select,
     Slider,
     Stack,
@@ -13,16 +13,17 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Info} from "@mui/icons-material";
+import {Info, Brush} from "@mui/icons-material"
 
 function Imagen2() {
-    const [preview, setPreview] = useState("")
+    const [preview, setPreview] = useState([])
     const [loading, setLoading] = useState(false)
     const [prompt, setPrompt] = useState("")
     const [negativePrompt, setNegativePrompt] = useState("")
     const [guidanceScale, setGuidanceScale] = useState(10)
     const [language, setLanguage] = useState("auto")
     const [error, setError] = useState("")
+    const [imageOpen, setImageOpen] = useState("")
 
     const generateImages = async () => {
         if(prompt === "") return
@@ -31,7 +32,7 @@ function Imagen2() {
             const np = negativePrompt.length > 0 ? negativePrompt : undefined
             const body = {
                 instances: [{prompt}],
-                parameters: {negativePrompt: np, guidanceScale, language, sampleCount: 2}
+                parameters: {negativePrompt: np, guidanceScale, language, sampleCount: 4}
             }
             const res = await fetch("/api/generate-image", {
                 method: "POST",
@@ -41,12 +42,13 @@ function Imagen2() {
                 body: JSON.stringify(body)
             })
             if (!res.ok) throw new Error(await res.text())
-            setPreview(`data:image/png;base64,${await res.text()}`)
+            const images = (await res.json()).map(prediction => `data:image/png;base64,${prediction.bytesBase64Encoded}`)
+            setPreview(images)
             setLoading(false)
         }
         catch(err){
             setError(err.message)
-            setPreview("")
+            setPreview([])
             setLoading(false)
         }
     }
@@ -56,16 +58,6 @@ function Imagen2() {
         setLoading(true)
         setError("")
         return generateImages()
-    }
-
-    const previewImage = (e) => {
-        const reader = new FileReader()
-
-        reader.addEventListener("load", () => setPreview(reader.result), false)
-
-        if (e?.target?.files?.[0]) {
-            reader.readAsDataURL(e.target.files[0])
-        }
     }
 
     const guidanceTooltip = () => {
@@ -137,20 +129,31 @@ function Imagen2() {
                 </Stack>
             </Grid>
 
-            <Grid xs={2}>
-                {!loading && <Button onClick={onFormSubmit} type="submit"
+            <Grid xs={3}>
+                { <Button onClick={onFormSubmit} type="submit"
                                      size="large" variant="contained"
-                                     disabled={prompt.length <= 0} >Generate Image</Button>}
-                {loading && <LoadingSpinner/>}
+                                     disabled={prompt.length <= 0 || loading}
+                                     endIcon={loading?<LoadingSpinner/>:<Brush/>}>Generate Image</Button>}
             </Grid>
 
             <Grid xs={12}>
-                {preview.length > 0 && !loading && <img id="baseImage" src={preview} style={{ maxWidth: "100%" }}/>}
+                {preview.length > 0 && !loading &&
+                    <ImageList cols={2}>
+                        {preview.map(image =>
+                            <ImageListItem>
+                                <img src={image} style={{maxWidth: "100%"}} onClick={e=>setImageOpen(image)}/>
+                            </ImageListItem>)}
+                    </ImageList>
+                }
+                <Dialog open={Boolean(imageOpen)} fullScreen onClick={()=>setImageOpen("")}>
+                    <img src={imageOpen} style={{maxWidth: "100%"}}/>
+                </Dialog>
             </Grid>
 
 
             <Grid xs={12}>
-                {error.length > 0 && !loading && <Typography>{error}</Typography>}
+                {error.length > 0 && !loading &&
+                    <Typography sx={{ whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>{error}</Typography>}
             </Grid>
         </Grid>
         </form>
