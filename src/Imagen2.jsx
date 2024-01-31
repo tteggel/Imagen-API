@@ -42,9 +42,7 @@ function Imagen2() {
             }
             const res = await fetch("/api/generate-image", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body)
             })
             if (!res.ok) throw new Error(await res.text())
@@ -68,7 +66,7 @@ function Imagen2() {
 
     const guidanceTooltip = () => {
         return (
-            <React.Fragment>
+            <>
                 <Typography variant="h6">How strong do you want the prompt(s) to be?</Typography>
                 <Typography>
                     A larger number will make an image that is closer to your prompt(s),
@@ -80,7 +78,7 @@ function Imagen2() {
                     <ListItemText>10-20: medium strength</ListItemText>
                     <ListItemText>21 or higher: high strength</ListItemText>
                 </List>
-            </React.Fragment>
+            </>
         )
     }
 
@@ -99,9 +97,7 @@ function Imagen2() {
     return (
         <form>
         <Grid container spacing={2}>
-            <Grid xs={12}><Typography variant="h2">Image Generation</Typography></Grid>
-
-            <Grid xs={10}>
+            <Grid xs={12} md={10}>
                 <TextField label="Enter your prompt here"
                            variant="outlined"
                            fullWidth
@@ -112,7 +108,7 @@ function Imagen2() {
                 />
             </Grid>
 
-            <Grid xs={2}>
+            <Grid xs={12} md={2}>
                 <TextField label="Language"
                            select
                            fullWidth
@@ -127,7 +123,7 @@ function Imagen2() {
                 </TextField>
             </Grid>
 
-            <Grid xs={10}>
+            <Grid xs={12} md={10}>
                 <TextField label="Negative prompt (optional)"
                            variant="outlined"
                            fullWidth
@@ -145,11 +141,9 @@ function Imagen2() {
                         <InputLabel id="strength-slider">Prompt strength</InputLabel>
                         <Slider min={0}
                                 max={50}
-                                defaultValue={10}
                                 value={guidanceScale}
                                 aria-labelledby="strength-slider"
                                 valueLabelDisplay="auto"
-                                label="Prompt strength"
                                 onChange={e => setGuidanceScale(e.target.value)}
                                 color={guidanceScaleColor(guidanceScale)}
                                 getAriaValueText={guidanceScaleSuffix}
@@ -160,13 +154,14 @@ function Imagen2() {
                 </Stack>
             </Grid>
 
-            <Grid xs={3}>
+            <Grid xs={12} md={4}>
                 <Button onClick={onFormSubmit}
                         type="submit"
                         size="large"
                         variant="contained"
                         disabled={prompt.length <= 0 || loading}
                         endIcon={loading?<LoadingSpinner/>:<Brush/>}
+                        fullWidth
                 >
                     Generate Images
                 </Button>

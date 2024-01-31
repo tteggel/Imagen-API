@@ -1,16 +1,17 @@
 import {
-    Button,
-    InputAdornment, Stack,
+    Accordion, AccordionDetails, AccordionSummary,
+    Button, FormControl,
+    InputAdornment, InputLabel, MenuItem, Slider, Stack,
     styled,
-    TextField,
+    TextField, Tooltip,
     Typography
 } from "@mui/material"
 import LoadingSpinner from "./LoadingSpinner.jsx"
 import React, {useEffect, useState} from "react"
 import Grid from "@mui/material/Unstable_Grid2"
-import {Textsms, AddCircle, DeleteForever} from "@mui/icons-material"
+import {Textsms, AddCircle, DeleteForever, Info} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
-import {AddPhotoAlternate, ClearAll} from "@mui/icons-material/"
+import {AddPhotoAlternate, ClearAll, ArrowDropDown} from "@mui/icons-material/"
 
 function Gemini() {
     const [loading, setLoading] = useState(false)
@@ -19,18 +20,31 @@ function Gemini() {
     const [text, setText] = useState("")
     const [error, setError] = useState("")
     const [upload, setUpload] = useState(false)
+    const [temperature, setTemperature] = useState(0.9)
+    const [topP, setTopP] = useState(1.0)
+    const [topK, setTopK] = useState(32)
+    const [sexuallyExplicitThreshold, setSexuallyExplicitThreshold] = useState("BLOCK_LOW_AND_ABOVE")
+    const [hateSpeechThreshold, setHateSpeechThreshold] = useState("BLOCK_LOW_AND_ABOVE")
+    const [harassmentThreshold, setHarassmentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
+    const [dangerousContentThreshold, setDangerousContentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
+
 
     const generateText = async () => {
         if(parts.length === 0) return
         const rq = {
-            contents: history
+            contents: history,
+            generationConfig: { temperature, topP, topK },
+            safetySettings:[
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: sexuallyExplicitThreshold },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: hateSpeechThreshold },
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: harassmentThreshold },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: dangerousContentThreshold }
+            ]
         }
         try {
             const rs = await fetch("/api/generate-text", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(rq)
             })
             if (!rs.ok) {
@@ -141,6 +155,16 @@ function Gemini() {
         reader.readAsDataURL(file)
     }
 
+    function harmCategories() {
+        return [
+            <MenuItem value="BLOCK_LOW_AND_ABOVE">Strong blocking (block "Low" and above)</MenuItem>,
+            <MenuItem value="BLOCK_MED_AND_ABOVE">Medium blocking (block "Medium" and above)</MenuItem>,
+            <MenuItem value="BLOCK_HIGH_AND_ABOVE">Weak blocking (block "High" and above)</MenuItem>,
+            <MenuItem value="BLOCK_NONE">No blocking (allow all)</MenuItem>,
+        ];
+    }
+
+
     useEffect(() => {
         if (!upload) return
         const inlineData = {
@@ -166,13 +190,11 @@ function Gemini() {
 
     return (
     <Grid container spacing={2}>
-        <Grid xs={12}><Typography variant="h2">Text Generation</Typography></Grid>
+        <Grid xs={12}><Typography variant="h6" hidden={history.length === 0}>Prompt history</Typography></Grid>
+        {history.map(formatHistoryItem)}
 
-        <Grid xs={12}><Typography variant="h3" hidden={history.length === 0}>Prompt history</Typography></Grid>
-        { history.map(formatHistoryItem) }
-
-        <Grid xs={12}><Typography variant="h3">Build your prompt</Typography></Grid>
-        { parts.map(formatPromptPart) }
+        <Grid xs={12}><Typography variant="h6">Build your prompt</Typography></Grid>
+        {parts.map(formatPromptPart)}
 
         <Grid xs={12} md={6}>
             <TextField label="Add some text to your prompt"
@@ -185,7 +207,7 @@ function Gemini() {
                        InputProps={{
                            endAdornment: (
                                <InputAdornment position="end" onClick={submitText}>
-                                   <AddCircle color={text.length > 0 ? "primary" : "text.disabled"} />
+                                   <AddCircle color={text.length > 0 ? "primary" : "text.disabled"}/>
                                </InputAdornment>
                            ),
                        }}
@@ -195,10 +217,10 @@ function Gemini() {
         <Grid xs={12} md={6}>
             <Button component="label"
                     variant="outlined"
-                    startIcon={<AddPhotoAlternate />}
+                    startIcon={<AddPhotoAlternate/>}
                     color="secondary"
                     size="large"
-                    sx={{height:"56px", overflow: "hidden"}}
+                    sx={{height: "56px", overflow: "hidden"}}
                     fullWidth
             >
                 Add an image to your prompt
@@ -217,22 +239,141 @@ function Gemini() {
                         size="large"
                         variant="contained"
                         disabled={parts.length <= 0 || loading}
-                        endIcon={loading?<LoadingSpinner/>:<Textsms/>}
+                        endIcon={loading ? <LoadingSpinner/> : <Textsms/>}
                         fullWidth
                         sx={{minHeight: "56px"}}
                 >
                     Submit Prompt
                 </Button>
 
-            <Button onClick={()=>{setParts([]); setHistory([])}}
-                    size="large"
-                    variant="outlined"
-                    disabled={(parts.length <= 0 && history.length <= 0) || loading}
-                    endIcon={<ClearAll/>}
-            >
-                Clear All
-            </Button>
+                <Button onClick={() => {
+                    setParts([]);
+                    setHistory([])
+                }}
+                        size="large"
+                        variant="outlined"
+                        disabled={(parts.length <= 0 && history.length <= 0) || loading}
+                        endIcon={<ClearAll/>}
+                >
+                    Clear All
+                </Button>
             </Stack>
+        </Grid>
+
+        <Grid xs={12}>
+            <Accordion>
+                <AccordionSummary
+                    expandIcon={<ArrowDropDown/>}
+                    aria-controls="panel1-content"
+                    id="panel1-header"
+                >
+                    <Typography>Safety settings</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Stack spacing={2}>
+                        <TextField label="Sexually Explicit Threshold"
+                                   select
+                                   value={sexuallyExplicitThreshold}
+                                   onChange={e => setSexuallyExplicitThreshold(e.target.value)}
+                        >
+                            {harmCategories()}
+                        </TextField>
+                        <TextField label="Hate Speech Threshold"
+                                   select
+                                   value={hateSpeechThreshold}
+                                   onChange={e => setHateSpeechThreshold(e.target.value)}
+                        >
+                            {harmCategories()}
+                        </TextField>
+                        <TextField label="Harassment Threshold"
+                                   select
+                                   value={harassmentThreshold}
+                                   onChange={e => setHarassmentThreshold(e.target.value)}
+                        >
+                            {harmCategories()}
+                        </TextField>
+                        <TextField label="Dangerous Content Threshold"
+                                   select
+                                   value={dangerousContentThreshold}
+                                   onChange={e => setDangerousContentThreshold(e.target.value)}
+                        >
+                            {harmCategories()}
+                        </TextField>
+                    </Stack>
+                </AccordionDetails>
+            </Accordion>
+            <Accordion>
+                <AccordionSummary
+                    expandIcon={<ArrowDropDown/>}
+                    aria-controls="panel2-content"
+                    id="panel2-header"
+                >
+                    <Typography>Advanced settings</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Stack spacing={2}
+                           direction="row"
+                           sx={{mb: 1}}
+                           alignItems="center">
+                        <FormControl fullWidth>
+                            <InputLabel id="temperature-slider">Temperature</InputLabel>
+                            <Slider min={0}
+                                    max={1}
+                                    step={0.01}
+                                    value={temperature}
+                                    aria-labelledby="temperature-slider"
+                                    valueLabelDisplay="auto"
+                                    onChange={e => setTemperature(e.target.value)}
+                            />
+                        </FormControl>
+                        <Tooltip
+                            title={<Typography>Lower temperatures are good for prompts that require a more deterministic
+                                and less open-ended or creative response, while higher temperatures can lead to more
+                                diverse or creative results. A temperature of 0 will always return the same answer for
+                                the same prompt.</Typography>}><Info/></Tooltip>
+                    </Stack>
+
+                    <Stack spacing={2}
+                           direction="row"
+                           sx={{mb: 1}}
+                           alignItems="center">
+                        <FormControl fullWidth>
+                            <InputLabel id="topk-slider">Top-K</InputLabel>
+                            <Slider min={0}
+                                    max={40}
+                                    step={1}
+                                    value={topK}
+                                    aria-labelledby="topk-slider"
+                                    valueLabelDisplay="auto"
+                                    onChange={e => setTopK(e.target.value)}
+                            />
+                        </FormControl>
+                        <Tooltip
+                            title={<Typography>Specify a lower value for less random responses and a higher value for
+                                more random responses.</Typography>}><Info/></Tooltip>
+                    </Stack>
+
+                    <Stack spacing={2}
+                           direction="row"
+                           sx={{mb: 1}}
+                           alignItems="center">
+                        <FormControl fullWidth>
+                            <InputLabel id="topp-slider">Top-P</InputLabel>
+                            <Slider min={0}
+                                    max={1}
+                                    step={0.01}
+                                    value={topP}
+                                    aria-labelledby="topp-slider"
+                                    valueLabelDisplay="auto"
+                                    onChange={e => setTopP(e.target.value)}
+                            />
+                        </FormControl>
+                        <Tooltip
+                            title={<Typography>Specify a lower value for less random responses and a higher value for
+                                more random responses.</Typography>}><Info/></Tooltip>
+                    </Stack>
+                </AccordionDetails>
+            </Accordion>
         </Grid>
 
         <Grid xs={12}>

@@ -9,7 +9,6 @@ function App() {
     const [tabPage, setTabPage] = useState("2")
     return (
         <Container maxwidth="l">
-        <Typography variant="h1">Generative AI Sandbox</Typography>
 
         <TabContext value={tabPage}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
