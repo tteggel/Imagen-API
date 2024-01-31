@@ -23,7 +23,7 @@ router.post("/api/generate-text", (req, res) => {
     generateText(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
 })
 
-app.use('/imagen2', router)
+app.use('/ai', router)
 app.use('/', router)
 
 app.listen(port, () => {

@@ -10,7 +10,7 @@ import React, {useEffect, useState} from "react"
 import Grid from "@mui/material/Unstable_Grid2"
 import {Textsms, AddCircle, DeleteForever} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
-import {AddPhotoAlternate} from "@mui/icons-material/"
+import {AddPhotoAlternate, ClearAll} from "@mui/icons-material/"
 
 function Gemini() {
     const [loading, setLoading] = useState(false)
@@ -68,8 +68,6 @@ function Gemini() {
         if (historyIndex !== null && p.length === 0) history.splice(historyIndex, 1)
         if (historyIndex !== null) setHistory([...history])
         else setParts([...parts])
-        console.log(parts)
-        console.log(history)
     }
 
     const formatHistoryItem = (item, index) => {
@@ -145,10 +143,10 @@ function Gemini() {
     <Grid container spacing={2}>
         <Grid xs={12}><Typography variant="h2">Text Generation</Typography></Grid>
 
-        <Grid xs={12}><Typography variant="h3">Prompt history</Typography></Grid>
+        <Grid xs={12}><Typography variant="h3" hidden={history.length === 0}>Prompt history</Typography></Grid>
         { history.map(formatHistoryItem) }
 
-        <Grid xs={12}><Typography variant="h3">Build your next prompt</Typography></Grid>
+        <Grid xs={12}><Typography variant="h3">Build your prompt</Typography></Grid>
         { parts.map(formatPromptItem(null, true)) }
 
         <Grid xs={6}>
@@ -198,11 +196,23 @@ function Gemini() {
             </Button>
         </Grid>
 
+        <Grid xs={3}>
+            <Button onClick={()=>{setParts([]); setHistory([])}}
+                    size="large"
+                    variant="outlined"
+                    disabled={parts.length <= 0 || loading}
+                    endIcon={<ClearAll/>}
+            >
+                Clear All
+            </Button>
+        </Grid>
+
         <Grid xs={12}>
             {error.length > 0 && !loading &&
                 <Typography sx={{whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>
                     {error}
-                </Typography>}
+                </Typography>
+            }
         </Grid>
 
     </Grid>
