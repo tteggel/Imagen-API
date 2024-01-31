@@ -1,72 +1,211 @@
-import {Button, Container} from "@mui/material";
-import LoadingSpinner from "./LoadingSpinner.jsx";
-import {useState} from "react";
+import {
+    Button,
+    InputAdornment,
+    styled,
+    TextField,
+    Typography
+} from "@mui/material"
+import LoadingSpinner from "./LoadingSpinner.jsx"
+import React, {useEffect, useState} from "react"
+import Grid from "@mui/material/Unstable_Grid2"
+import {Textsms, AddCircle, DeleteForever} from "@mui/icons-material"
+import Markdown from "./Markdown.jsx"
+import {AddPhotoAlternate} from "@mui/icons-material/"
 
 function Gemini() {
-    const [preview, setPreview] = useState("")
     const [loading, setLoading] = useState(false)
     const [history, setHistory] = useState([])
-    const [prompt, setPrompt] = useState([])
+    const [parts, setParts] = useState([])
     const [text, setText] = useState("")
-    const [negativePrompt, setNegativePrompt] = useState(1)
-    const [guidanceScale, setGuidanceScale] = useState(10)
-    const [language, setLanguage] = useState("auto")
     const [error, setError] = useState("")
+    const [upload, setUpload] = useState(false)
 
     const generateText = async () => {
-        if(text === "") return
+        if(parts.length === 0) return
+        const rq = {
+            contents: history
+        }
         try {
-            //const instance = { prompt, image: preview ? {bytesBase64Encoded: preview.split(",")[1]} : undefined }
-            const instance = { prompt }
-            const res = await fetch("/api/generate-text", {
+            const rs = await fetch("/api/generate-text", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(instance)
+                body: JSON.stringify(rq)
             })
-            if (!res.ok) throw new Error(await res.text())
-            setPreview(await res.text())
+            if (!rs.ok) {
+                throw new Error(await rs.text())
+            }
             setLoading(false)
+
+            const body = await rs.json()
+
+            history.push(body)
+            setHistory([...history])
         }
         catch(err){
             setError(err.message)
-            setPreview("")
             setLoading(false)
         }
     }
 
-    const onFormSubmit = (e) => {
+    const onFormSubmit = async (e) => {
         e.preventDefault()
-        history.push({role: "user", text})
-        setHistory(history)
+        if(text.length > 0) await submitText()
+        history.push({role:"USER", parts})
+        setHistory([...history])
         setText("")
         setLoading(true)
         setError("")
-        return generateText()
+        const partsRq = parts
+        setParts([])
+        return generateText(partsRq)
     }
 
-    const formatHistoryItem = (item) => {
-        return (
-        <li>
-            {item.text ? item.text : item.inlineData ? <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}/> : "Unknown part type"}
-        </li>
+    const deletePromptItem = (historyIndex, index) => () => {
+        const p = historyIndex !== null ? history[index].parts : parts
+        p.splice(index, 1)
+        if (historyIndex !== null && p.length === 0) history.splice(historyIndex, 1)
+        if (historyIndex !== null) setHistory([...history])
+        else setParts([...parts])
+        console.log(parts)
+        console.log(history)
+    }
+
+    const formatHistoryItem = (item, index) => {
+        return item.parts.map(formatPromptItem(index, true, item.role))
+    }
+
+    const formatPromptItem = (historyIndex, del, role) => (item, index) => {
+        return (<>
+            <Grid xs={1}>
+                {role && index === 0 && <Typography variant="subtitle2">{role.toUpperCase()}</Typography>}
+            </Grid>
+            <Grid xs={10}>
+                {item.text && <Markdown markdown={item.text}/>}
+                {item.inlineData && <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}
+                                         style={{maxWidth: "100px", maxHeight: "100px"}}
+                                    />
+                }
+            </Grid>
+                <Grid xs={1}>
+                    {del && <DeleteForever onClick={deletePromptItem(historyIndex, index)}/>}
+                </Grid>
+            </>
         )
     }
 
+    const submitText = async (e) => {
+        if (e?.keyCode === 13 && text.length === 0 && parts.length > 0 && !e.shiftKey) {
+            e.preventDefault()
+            return onFormSubmit(e)
+        }
+        if ((e?.keyCode !== 13 && e?.keyCode !== undefined) || text.length === 0) return
+        if (e?.keyCode === 13 && e?.shiftKey) return
+
+        e.preventDefault()
+        parts.push({text: text.replace(/\n/g, "\n\n")})
+        setParts([...parts])
+        setText("")
+    }
+
+    const handleUploadClick = (e) => {
+        const file = e?.target?.files?.[0]
+        if (file === undefined) return
+
+        const reader = new FileReader()
+        reader.addEventListener("load", () => setUpload(reader.result), false)
+        reader.readAsDataURL(file)
+    }
+
+    useEffect(() => {
+        if (!upload) return
+        const inlineData = {
+            mimeType: upload.split(";")[0].split(":")[1],
+            data: upload.split(",")[1]
+        }
+        parts.push({inlineData})
+        setParts([...parts])
+        setUpload(false)
+    }, [upload])
+
+    const VisuallyHiddenInput = styled('input')({
+        clip: 'rect(0 0 0 0)',
+        clipPath: 'inset(50%)',
+        height: 1,
+        overflow: 'hidden',
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        whiteSpace: 'nowrap',
+        width: 1,
+    })
+
     return (
-    <Container className="container">
-        <ul>{prompt.map(formatHistoryItem)}</ul>
+    <Grid container spacing={2}>
+        <Grid xs={12}><Typography variant="h2">Text Generation</Typography></Grid>
 
-        {!loading && <Button onClick={onFormSubmit} className="mb-4">Submit Prompt</Button>}
+        <Grid xs={12}><Typography variant="h3">Prompt history</Typography></Grid>
+        { history.map(formatHistoryItem) }
 
-        {loading && <LoadingSpinner/>}
+        <Grid xs={12}><Typography variant="h3">Build your next prompt</Typography></Grid>
+        { parts.map(formatPromptItem(null, true)) }
 
-        {preview.length > 0 && !loading && <p>{preview}</p>}
+        <Grid xs={6}>
+            <TextField label="Add some text to your prompt"
+                       variant="outlined"
+                       multiline
+                       fullWidth
+                       value={text}
+                       onChange={e => setText(e.target.value)}
+                       onKeyDown={submitText}
+                       InputProps={{
+                           endAdornment: (
+                               <InputAdornment position="end" onClick={submitText}>
+                                   <AddCircle color={text.length > 0 ? "primary" : "text.disabled"} />
+                               </InputAdornment>
+                           ),
+                       }}
+            />
+        </Grid>
 
-        {error.length > 0 && !loading && <pre className="text-danger">{error}</pre>}
+        <Grid xs={6}>
+            <Button component="label"
+                    variant="outlined"
+                    startIcon={<AddPhotoAlternate />}
+                    color="secondary"
+                    size="large"
+                    sx={{height:"56px"}}
+                    fullWidth
+            >
+                Add an image to your prompt
+                <VisuallyHiddenInput type="file"
+                                     accept="image/png,image/jpeg"
+                                     onChange={handleUploadClick}
+                />
+            </Button>
+        </Grid>
 
-    </Container>
+        <Grid xs={3}>
+            <Button onClick={onFormSubmit}
+                    type="submit"
+                    size="large"
+                    variant="contained"
+                    disabled={parts.length <= 0 || loading}
+                    endIcon={loading?<LoadingSpinner/>:<Textsms/>}
+            >
+                Submit Prompt
+            </Button>
+        </Grid>
+
+        <Grid xs={12}>
+            {error.length > 0 && !loading &&
+                <Typography sx={{whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>
+                    {error}
+                </Typography>}
+        </Grid>
+
+    </Grid>
     )
 }
 

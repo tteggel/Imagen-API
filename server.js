@@ -1,13 +1,11 @@
 import express from "express"
 import {GoogleAuth} from "google-auth-library"
 import {configDotenv} from "dotenv"
-import {VertexAI} from "@google-cloud/vertexai"
 
 configDotenv()
 
 const port = process.env.PORT ?? 3001
 const auth = new GoogleAuth()
-const vertexAI = new VertexAI({project: process.env.VITE_GOOGLE_PROJECT_ID, location: "us-central1"})
 
 const app = express()
 const router = express.Router()
@@ -43,24 +41,46 @@ const generateImages = async (rq) => {
                 Authorization:`Bearer ${token}`,
             },
             body: JSON.stringify(rq)
-        })
+        }
+    )
     if (!rs.ok) throw new Error().stack = await rs.text()
 
     const body = await rs.json()
+
     if ((body?.predictions?.length ?? 0) === 0) throw new Error().stack = "Response from Google contained no images."
 
     return body.predictions
 }
 
-const generateText = async (instance) => {
-    try {
-        const model = vertexAI.preview.getGenerativeModel({model: "gemini-pro-vision"})
-        const rq = {
-            contents: [
-                {role: "user", parts: [{text: instance.prompt}]}
-            ]
+const needsVisionModel = (rq) => {
+    return rq.contents.some(content => content.parts.some(part => part.inlineData !== undefined)) ? "-vision" : ""
+}
+
+const generateText = async (rq) => {
+    const token = await auth.getAccessToken()
+
+    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.VITE_GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/gemini-pro${needsVisionModel(rq)}:streamGenerateContent?alt=sse`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization:`Bearer ${token}`,
+            },
+            body: JSON.stringify(rq)
         }
-        const rs = await model.generateContent(rq)
-        return rs.response
-    }catch (e) {console.log(e)}
+    )
+
+    if (!rs.ok) throw new Error().stack = await rs.text()
+
+    try {
+        const raw = await rs.text()
+        const lines = raw.split("\r\n")
+        const trimmed = lines.map(line => line.slice(6)).filter(line => line.length > 0)
+        const jsons = trimmed.map(trim => JSON.parse(trim))
+        return {role:"model", parts: [{text:jsons.reduce((p, c) => p + c.candidates[0].content.parts[0].text, "")}]}
+    }
+    catch (err) {
+        console.log(err)
+        throw new Error().stack = err.message
+    }
 }

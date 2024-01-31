@@ -1,15 +1,21 @@
-import React, { useState } from "react"
+import React, {useEffect, useState} from "react"
 import "./App.css"
 import {
-    Button, Dialog,
-    FormControl, ImageList, ImageListItem,
-    InputLabel, List, ListItemText,
-    MenuItem, Popover,
-    Select,
+    Box,
+    Button,
+    Dialog,
+    FormControl,
+    ImageList,
+    ImageListItem,
+    InputLabel,
+    List,
+    ListItemText,
+    MenuItem,
     Slider,
     Stack,
     TextField,
-    Tooltip, Typography
+    Tooltip,
+    Typography
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
@@ -53,7 +59,7 @@ function Imagen2() {
         }
     }
 
-    const onFormSubmit = (e) => {
+    const onFormSubmit = async (e) => {
         e.preventDefault()
         setLoading(true)
         setError("")
@@ -93,15 +99,26 @@ function Imagen2() {
     return (
         <form>
         <Grid container spacing={2}>
+            <Grid xs={12}><Typography variant="h2">Image Generation</Typography></Grid>
+
             <Grid xs={10}>
-                <TextField label="Enter your prompt here" variant="outlined" fullWidth  value={prompt}
+                <TextField label="Enter your prompt here"
+                           variant="outlined"
+                           fullWidth
+                           value={prompt}
+                           error={prompt.length === 0}
                            onChange={e => setPrompt(e.target.value)}
-                           error={prompt.length === 0} helperText={prompt.length === 0 ? "Required" : undefined}/>
+                           helperText={prompt.length === 0 ? "Required" : undefined}
+                />
             </Grid>
 
             <Grid xs={2}>
-                <TextField labelId="language-label" value={language} label="Language" select
-                        onChange={e => setLanguage(e.target.value)} fullWidth>
+                <TextField label="Language"
+                           select
+                           fullWidth
+                           value={language}
+                           onChange={e => setLanguage(e.target.value)}
+                >
                     <MenuItem value="auto">(auto)</MenuItem>
                     <MenuItem value="en">English</MenuItem>
                     <MenuItem value="hi">Hindi</MenuItem>
@@ -111,49 +128,85 @@ function Imagen2() {
             </Grid>
 
             <Grid xs={10}>
-                <TextField label="Negative prompt (optional)" variant="outlined" fullWidth  value={negativePrompt}
-                           onChange={e => setNegativePrompt(e.target.value)}/>
+                <TextField label="Negative prompt (optional)"
+                           variant="outlined"
+                           fullWidth
+                           value={negativePrompt}
+                           onChange={e => setNegativePrompt(e.target.value)}
+                />
             </Grid>
 
             <Grid xs={12}>
-                <Stack spacing={2} direction="row" sx={{ mb: 1 }} alignItems="center">
+                <Stack spacing={2}
+                       direction="row"
+                       sx={{ mb: 1 }}
+                       alignItems="center">
                     <FormControl fullWidth>
                         <InputLabel id="strength-slider">Prompt strength</InputLabel>
-                        <Slider min={0} max={50} defaultValue={10} value={guidanceScale}
-                                aria-labelledby="strength-slider" valueLabelDisplay="auto" label="Prompt strength"
+                        <Slider min={0}
+                                max={50}
+                                defaultValue={10}
+                                value={guidanceScale}
+                                aria-labelledby="strength-slider"
+                                valueLabelDisplay="auto"
+                                label="Prompt strength"
                                 onChange={e => setGuidanceScale(e.target.value)}
                                 color={guidanceScaleColor(guidanceScale)}
-                                getAriaValueText={guidanceScaleSuffix} valueLabelFormat={guidanceScaleSuffix}/>
+                                getAriaValueText={guidanceScaleSuffix}
+                                valueLabelFormat={guidanceScaleSuffix}
+                        />
                     </FormControl>
                      <Tooltip title={guidanceTooltip()}><Info/></Tooltip>
                 </Stack>
             </Grid>
 
             <Grid xs={3}>
-                { <Button onClick={onFormSubmit} type="submit"
-                                     size="large" variant="contained"
-                                     disabled={prompt.length <= 0 || loading}
-                                     endIcon={loading?<LoadingSpinner/>:<Brush/>}>Generate Image</Button>}
+                <Button onClick={onFormSubmit}
+                        type="submit"
+                        size="large"
+                        variant="contained"
+                        disabled={prompt.length <= 0 || loading}
+                        endIcon={loading?<LoadingSpinner/>:<Brush/>}
+                >
+                    Generate Images
+                </Button>
             </Grid>
 
             <Grid xs={12}>
-                {preview.length > 0 && !loading &&
+                { preview.length > 0 && !loading &&
                     <ImageList cols={2}>
-                        {preview.map(image =>
+                        { preview.map(image =>
                             <ImageListItem>
-                                <img src={image} style={{maxWidth: "100%"}} onClick={e=>setImageOpen(image)}/>
-                            </ImageListItem>)}
+                                <img src={image}
+                                     style={{maxWidth: "100%"}}
+                                     onClick={e=>setImageOpen(image)}
+                                />
+                            </ImageListItem>
+                        )}
                     </ImageList>
                 }
-                <Dialog open={Boolean(imageOpen)} fullScreen onClick={()=>setImageOpen("")}>
-                    <img src={imageOpen} style={{maxWidth: "100%"}}/>
+                <Dialog open={Boolean(imageOpen)}
+                        fullScreen
+                        onClick={()=>setImageOpen("")}
+                        PaperProps={{sx: { backgroundColor: 'transparent'}}}
+                >
+                    <Box display="flex"
+                         justifyContent="center"
+                         alignItems="center"
+                         minHeight="100vh"
+                         sx={{background: "rgba(0, 0, 0, 0.75)"}}
+                    >
+                        <img src={imageOpen} style={{maxWidth: "1024px"}}/>
+                    </Box>
                 </Dialog>
             </Grid>
 
 
             <Grid xs={12}>
                 {error.length > 0 && !loading &&
-                    <Typography sx={{ whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>{error}</Typography>}
+                    <Typography sx={{whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>
+                        {error}
+                    </Typography>}
             </Grid>
         </Grid>
         </form>
