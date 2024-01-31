@@ -6,7 +6,7 @@ import {useState} from "react";
 import {TabContext, TabList, TabPanel} from "@mui/lab";
 
 function App() {
-    const [tabPage, setTabPage] = useState("2")
+    const [tabPage, setTabPage] = useState("1")
     return (
         <Container maxwidth="l">
 

@@ -164,7 +164,6 @@ function Gemini() {
         ];
     }
 
-
     useEffect(() => {
         if (!upload) return
         const inlineData = {
@@ -211,6 +210,7 @@ function Gemini() {
                                </InputAdornment>
                            ),
                        }}
+                       helperText="At least one text item is required for each prompt you submit. Images are optional."
             />
         </Grid>
 
@@ -238,7 +238,9 @@ function Gemini() {
                         type="submit"
                         size="large"
                         variant="contained"
-                        disabled={parts.length <= 0 || loading}
+                        disabled={parts.length <= 0
+                            || loading
+                            || !parts.some(p=>p.text !== undefined)}
                         endIcon={loading ? <LoadingSpinner/> : <Textsms/>}
                         fullWidth
                         sx={{minHeight: "56px"}}
@@ -248,7 +250,8 @@ function Gemini() {
 
                 <Button onClick={() => {
                     setParts([]);
-                    setHistory([])
+                    setHistory([]);
+                    setError("")
                 }}
                         size="large"
                         variant="outlined"
