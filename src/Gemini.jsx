@@ -1,6 +1,6 @@
 import {
     Button,
-    InputAdornment,
+    InputAdornment, Stack,
     styled,
     TextField,
     Typography
@@ -57,37 +57,62 @@ function Gemini() {
         setText("")
         setLoading(true)
         setError("")
-        const partsRq = parts
         setParts([])
-        return generateText(partsRq)
+        console.log(history)
+        return generateText()
     }
 
-    const deletePromptItem = (historyIndex, index) => () => {
-        const p = historyIndex !== null ? history[index].parts : parts
+    const deletePromptItem = (index) => () => {
+        parts.splice(index, 1)
+        setParts([...parts])
+    }
+
+    const deleteHistoryItem = (historyIndex, index) => () => {
+        const p = history[historyIndex].parts
         p.splice(index, 1)
-        if (historyIndex !== null && p.length === 0) history.splice(historyIndex, 1)
-        if (historyIndex !== null) setHistory([...history])
-        else setParts([...parts])
+        if (p.length === 0) history.splice(historyIndex, 1)
+        setHistory([...history])
     }
 
     const formatHistoryItem = (item, index) => {
-        return item.parts.map(formatPromptItem(index, true, item.role))
+        return item.parts.map(formatHistoryPart(index, item.role))
     }
 
-    const formatPromptItem = (historyIndex, del, role) => (item, index) => {
+    const formatPart = (item) => {
+        return <>
+            {item.text && <Markdown markdown={item.text}/>}
+            {item.inlineData && <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}
+                                     style={{maxWidth: "100px", maxHeight: "100px"}}
+                                     alt="input image"
+            />
+            }
+        </>
+    }
+
+    const formatHistoryPart = (historyIndex, role) => (item, index) => {
         return (<>
-            <Grid xs={1}>
-                {role && index === 0 && <Typography variant="subtitle2">{role.toUpperCase()}</Typography>}
-            </Grid>
-            <Grid xs={10}>
-                {item.text && <Markdown markdown={item.text}/>}
-                {item.inlineData && <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}
-                                         style={{maxWidth: "100px", maxHeight: "100px"}}
-                                    />
-                }
-            </Grid>
+                <Grid xs={2}>
+                    {role && index === 0 && <Typography variant="subtitle2">{role.toUpperCase()}</Typography>}
+                </Grid>
+                <Grid xs={9}>
+                    {formatPart(item)}
+                </Grid>
                 <Grid xs={1}>
-                    {del && <DeleteForever onClick={deletePromptItem(historyIndex, index)}/>}
+                    <DeleteForever onClick={deleteHistoryItem(historyIndex, index)}/>
+                </Grid>
+            </>
+        )
+    }
+
+    const formatPromptPart = (item, index) => {
+        return (<>
+                <Grid xs={2}>
+                </Grid>
+                <Grid xs={9}>
+                    {formatPart(item)}
+                </Grid>
+                <Grid xs={1}>
+                    <DeleteForever onClick={deletePromptItem(index)}/>
                 </Grid>
             </>
         )
@@ -147,9 +172,9 @@ function Gemini() {
         { history.map(formatHistoryItem) }
 
         <Grid xs={12}><Typography variant="h3">Build your prompt</Typography></Grid>
-        { parts.map(formatPromptItem(null, true)) }
+        { parts.map(formatPromptPart) }
 
-        <Grid xs={6}>
+        <Grid xs={12} md={6}>
             <TextField label="Add some text to your prompt"
                        variant="outlined"
                        multiline
@@ -167,13 +192,13 @@ function Gemini() {
             />
         </Grid>
 
-        <Grid xs={6}>
+        <Grid xs={12} md={6}>
             <Button component="label"
                     variant="outlined"
                     startIcon={<AddPhotoAlternate />}
                     color="secondary"
                     size="large"
-                    sx={{height:"56px"}}
+                    sx={{height:"56px", overflow: "hidden"}}
                     fullWidth
             >
                 Add an image to your prompt
@@ -184,27 +209,30 @@ function Gemini() {
             </Button>
         </Grid>
 
-        <Grid xs={3}>
-            <Button onClick={onFormSubmit}
-                    type="submit"
-                    size="large"
-                    variant="contained"
-                    disabled={parts.length <= 0 || loading}
-                    endIcon={loading?<LoadingSpinner/>:<Textsms/>}
-            >
-                Submit Prompt
-            </Button>
-        </Grid>
+        <Grid xs={12}>
+            <Stack spacing={2} direction="row">
 
-        <Grid xs={3}>
+                <Button onClick={onFormSubmit}
+                        type="submit"
+                        size="large"
+                        variant="contained"
+                        disabled={parts.length <= 0 || loading}
+                        endIcon={loading?<LoadingSpinner/>:<Textsms/>}
+                        fullWidth
+                        sx={{minHeight: "56px"}}
+                >
+                    Submit Prompt
+                </Button>
+
             <Button onClick={()=>{setParts([]); setHistory([])}}
                     size="large"
                     variant="outlined"
-                    disabled={parts.length <= 0 || loading}
+                    disabled={(parts.length <= 0 && history.length <= 0) || loading}
                     endIcon={<ClearAll/>}
             >
                 Clear All
             </Button>
+            </Stack>
         </Grid>
 
         <Grid xs={12}>
