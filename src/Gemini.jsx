@@ -1,6 +1,6 @@
 import {
     Accordion, AccordionDetails, AccordionSummary,
-    Button, FormControl,
+    Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl,
     InputAdornment, InputLabel, MenuItem, Slider, Stack,
     styled,
     TextField, Tooltip,
@@ -11,7 +11,7 @@ import React, {useEffect, useState} from "react"
 import Grid from "@mui/material/Unstable_Grid2"
 import {Textsms, AddCircle, DeleteForever, Info} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
-import {AddPhotoAlternate, ClearAll, ArrowDropDown} from "@mui/icons-material/"
+import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare} from "@mui/icons-material/"
 
 function Gemini() {
     const [loading, setLoading] = useState(false)
@@ -27,7 +27,8 @@ function Gemini() {
     const [hateSpeechThreshold, setHateSpeechThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [harassmentThreshold, setHarassmentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [dangerousContentThreshold, setDangerousContentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
-
+    const [shareDialogOpen, setShareDialogOpen] = useState(false)
+    const [shareCode, setShareCode] = useState("")
 
     const generateText = async () => {
         if(parts.length === 0) return
@@ -155,13 +156,56 @@ function Gemini() {
         reader.readAsDataURL(file)
     }
 
-    function harmCategories() {
+    const harmCategories = () => {
         return [
             <MenuItem value="BLOCK_LOW_AND_ABOVE">Strong blocking (block "Low" and above)</MenuItem>,
             <MenuItem value="BLOCK_MED_AND_ABOVE">Medium blocking (block "Medium" and above)</MenuItem>,
             <MenuItem value="BLOCK_HIGH_AND_ABOVE">Weak blocking (block "High" and above)</MenuItem>,
             <MenuItem value="BLOCK_NONE">No blocking (allow all)</MenuItem>,
         ];
+    }
+
+    const clearAll = () => {
+        setParts([])
+        setHistory([])
+        setError("")
+    }
+
+    const serialiseState = () => {
+        return btoa(JSON.stringify({
+            history,
+            parts,
+            temperature,
+            topK,
+            topP,
+            sexuallyExplicitThreshold,
+            hateSpeechThreshold,
+            harassmentThreshold,
+            dangerousContentThreshold,
+        }))
+    }
+
+    const deserialiseState = (state) => {
+        const j = JSON.parse(atob(state))
+        setHistory(j.history)
+        setParts(j.parts)
+        setTemperature(j.temperature)
+        setTopK(j.topK)
+        setTopP(j.topP)
+        setSexuallyExplicitThreshold(j.sexuallyExplicitThreshold)
+        setHateSpeechThreshold(j.hateSpeechThreshold)
+        setHarassmentThreshold(j.harassmentThreshold)
+        setDangerousContentThreshold(j.dangerousContentThreshold)
+    }
+
+    const copyState = (e) => {
+        const serialised = serialiseState()
+        navigator.clipboard.writeText(serialised)
+    }
+
+    const importState = (e) => {
+        deserialiseState(shareCode)
+        setShareDialogOpen(false)
     }
 
     useEffect(() => {
@@ -174,6 +218,51 @@ function Gemini() {
         setParts([...parts])
         setUpload(false)
     }, [upload])
+
+    const ShareDialog = () => (<>
+        <Dialog
+            open={shareDialogOpen}
+            onClose={()=>setShareDialogOpen(false)}
+            PaperProps={{
+                component: 'form',
+                onSubmit: (event) => {
+                    event.preventDefault()
+                    const formData = new FormData(event.currentTarget)
+                    const formJson = Object.fromEntries((formData).entries())
+                    const email = formJson.email
+                    console.log(email)
+                    setShareDialogOpen(false)
+                },
+            }}
+        >
+            <DialogTitle>Share</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Paste a shared prompt in here and press IMPORT, or press COPY to put a share code in your clipboard.
+                    Prompts with images in are too big to share in this way.
+
+                    <Typography color={"warning"}>Pressing IMPORT will erase any work you have in the current prompt.</Typography>
+                </DialogContentText>
+                <TextField
+                    autoFocus
+                    required
+                    margin="dense"
+                    id="name"
+                    name="email"
+                    label="Share Code"
+                    type="email"
+                    fullWidth
+                    variant="standard"
+                    onChange={(e) => setShareCode(e.target.value)}
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={()=>setShareDialogOpen(false)}>Cancel</Button>
+                <Button onClick={copyState}>Copy</Button>
+                <Button onClick={importState}>Import</Button>
+            </DialogActions>
+        </Dialog>
+    </>)
 
     const VisuallyHiddenInput = styled('input')({
         clip: 'rect(0 0 0 0)',
@@ -248,11 +337,7 @@ function Gemini() {
                     Submit Prompt
                 </Button>
 
-                <Button onClick={() => {
-                    setParts([]);
-                    setHistory([]);
-                    setError("")
-                }}
+                <Button onClick={clearAll}
                         size="large"
                         variant="outlined"
                         disabled={(parts.length <= 0 && history.length <= 0) || loading}
@@ -260,6 +345,15 @@ function Gemini() {
                 >
                     Clear All
                 </Button>
+
+                <Button onClick={()=>setShareDialogOpen(true)}
+                        size="large"
+                        variant="outlined"
+                        endIcon={<IosShare/>}
+                >
+                    Share
+                </Button>
+                <ShareDialog/>
             </Stack>
         </Grid>
 
@@ -329,11 +423,13 @@ function Gemini() {
                                     onChange={e => setTemperature(e.target.value)}
                             />
                         </FormControl>
-                        <Tooltip
-                            title={<Typography>Lower temperatures are good for prompts that require a more deterministic
+                        <Tooltip title={<Typography>Lower temperatures are good for prompts that require a more deterministic
                                 and less open-ended or creative response, while higher temperatures can lead to more
                                 diverse or creative results. A temperature of 0 will always return the same answer for
-                                the same prompt.</Typography>}><Info/></Tooltip>
+                                the same prompt.</Typography>}
+                        >
+                            <Info/>
+                        </Tooltip>
                     </Stack>
 
                     <Stack spacing={2}
@@ -351,9 +447,11 @@ function Gemini() {
                                     onChange={e => setTopK(e.target.value)}
                             />
                         </FormControl>
-                        <Tooltip
-                            title={<Typography>Specify a lower value for less random responses and a higher value for
-                                more random responses.</Typography>}><Info/></Tooltip>
+                        <Tooltip title={<Typography>Specify a lower value for less random responses and a higher value for
+                                more random responses.</Typography>}
+                        >
+                            <Info/>
+                        </Tooltip>
                     </Stack>
 
                     <Stack spacing={2}
@@ -371,9 +469,11 @@ function Gemini() {
                                     onChange={e => setTopP(e.target.value)}
                             />
                         </FormControl>
-                        <Tooltip
-                            title={<Typography>Specify a lower value for less random responses and a higher value for
-                                more random responses.</Typography>}><Info/></Tooltip>
+                        <Tooltip title={<Typography>Specify a lower value for less random responses and a higher value for
+                                more random responses.</Typography>}
+                        >
+                            <Info/>
+                        </Tooltip>
                     </Stack>
                 </AccordionDetails>
             </Accordion>
