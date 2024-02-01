@@ -1,5 +1,5 @@
 import {
-    Accordion, AccordionDetails, AccordionSummary,
+    Accordion, AccordionDetails, AccordionSummary, Box,
     Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl,
     InputAdornment, InputLabel, MenuItem, Slider, Stack,
     styled,
@@ -12,6 +12,131 @@ import Grid from "@mui/material/Unstable_Grid2"
 import {Textsms, AddCircle, DeleteForever, Info} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
 import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare} from "@mui/icons-material/"
+
+const PromptPart = ({item}) => {
+    return <>
+        {item.text && <Markdown markdown={item.text}/>}
+        {item.inlineData && <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}
+                                 style={{maxWidth: "100px", maxHeight: "100px"}}
+                                 alt="input image"
+        />
+        }
+    </>
+}
+
+const PromptBuilderPart = ({item, index, deletePromptItem}) => {
+    return (<>
+            <Grid xs={2}>
+            </Grid>
+            <Grid xs={9}>
+                <PromptPart item={item}/>
+            </Grid>
+            <Grid xs={1}>
+                <DeleteForever onClick={deletePromptItem(index)}/>
+            </Grid>
+        </>
+    )
+}
+
+const PromptHistoryItem = (props) => {
+    return props.item.parts.map((part, partIndex) =>
+        <PromptHistoryPart {...props} part={part} partIndex={partIndex}/>
+    )
+}
+
+const PromptHistoryPart = ({item, itemIndex, part, partIndex, deleteHistoryPart}) => {
+    return (<>
+            <Grid xs={2}>
+                {item.role && partIndex === 0 && <Typography variant="subtitle2">{item.role.toUpperCase()}</Typography>}
+            </Grid>
+            <Grid xs={9}>
+                <PromptPart item={part}/>
+            </Grid>
+            <Grid xs={1}>
+                <DeleteForever onClick={deleteHistoryPart(itemIndex, partIndex)}/>
+            </Grid>
+        </>
+    )
+}
+
+const ShareDialog = ({open, handleClose, serialiseState, deserialiseState}) => {
+    const [shareCode, setShareCode] = useState("")
+    const [copiedState, setCopiedState] = useState(false)
+
+    const copyState = () => {
+        const serialised = serialiseState()
+        setCopiedState(true)
+        setTimeout(() => setCopiedState(false), 5000)
+        return navigator.clipboard.writeText(serialised)
+    }
+
+    const importState = () => {
+        if (shareCode.length === 0) return
+        deserialiseState(shareCode)
+        handleClose()
+    }
+
+    const handleShareCodeChange = (e) => {
+        setShareCode(e.target.value)
+    }
+
+    const handleShareCodeSubmit = (e) => {
+        if (e.keyCode === 13) importState()
+    }
+
+    return (<>
+        <Dialog
+            open={open}
+            onClose={handleClose}
+        >
+            <DialogTitle>Share</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Paste a shared prompt in here and press IMPORT, or press COPY to put a share code in your clipboard.
+                    Prompts with images in are too big to share in this way.
+                    <Typography color="warning" variant="body1" sx={{color:"red"}}><strong>Pressing IMPORT will erase any work you have in the current prompt.</strong></Typography>
+                </DialogContentText>
+                <TextField
+                    autoFocus
+                    required
+                    margin="dense"
+                    id="name"
+                    name="email"
+                    label="Share Code"
+                    type="email"
+                    fullWidth
+                    variant="standard"
+                    onChange={handleShareCodeChange}
+                    onKeyDown={handleShareCodeSubmit}
+                />
+            </DialogContent>
+            <DialogActions  sx={{ justifyContent: "space-between" }}>
+                <Button onClick={copyState}
+                        disabled={copiedState}
+                        variant="outlined"
+                >
+                    {copiedState ? "Copied!" : "Copy"}
+                </Button>
+                <Box>
+                    <Button onClick={handleClose}>Cancel</Button>
+                    <Button onClick={importState} variant="contained">Import</Button>
+                </Box>
+            </DialogActions>
+        </Dialog>
+    </>)
+}
+
+const VisuallyHiddenInput = styled('input')({
+    clip: 'rect(0 0 0 0)',
+    clipPath: 'inset(50%)',
+    height: 1,
+    overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    whiteSpace: 'nowrap',
+    width: 1,
+})
 
 function Gemini() {
     const [loading, setLoading] = useState(false)
@@ -28,7 +153,33 @@ function Gemini() {
     const [harassmentThreshold, setHarassmentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [dangerousContentThreshold, setDangerousContentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [shareDialogOpen, setShareDialogOpen] = useState(false)
-    const [shareCode, setShareCode] = useState("")
+
+    const serialiseState = () => {
+        return btoa(JSON.stringify({
+            history,
+            parts,
+            temperature,
+            topK,
+            topP,
+            sexuallyExplicitThreshold,
+            hateSpeechThreshold,
+            harassmentThreshold,
+            dangerousContentThreshold,
+        }))
+    }
+
+    const deserialiseState = (state) => {
+        const j = JSON.parse(atob(state))
+        setHistory(j.history)
+        setParts(j.parts)
+        setTemperature(j.temperature)
+        setTopK(j.topK)
+        setTopP(j.topP)
+        setSexuallyExplicitThreshold(j.sexuallyExplicitThreshold)
+        setHateSpeechThreshold(j.hateSpeechThreshold)
+        setHarassmentThreshold(j.harassmentThreshold)
+        setDangerousContentThreshold(j.dangerousContentThreshold)
+    }
 
     const generateText = async () => {
         if(parts.length === 0) return
@@ -49,6 +200,7 @@ function Gemini() {
                 body: JSON.stringify(rq)
             })
             if (!rs.ok) {
+                // noinspection ExceptionCaughtLocallyJS
                 throw new Error(await rs.text())
             }
             setLoading(false)
@@ -82,55 +234,11 @@ function Gemini() {
         setParts([...parts])
     }
 
-    const deleteHistoryItem = (historyIndex, index) => () => {
-        const p = history[historyIndex].parts
-        p.splice(index, 1)
-        if (p.length === 0) history.splice(historyIndex, 1)
+    const deleteHistoryPart = (itemIndex, partIndex) => () => {
+        const p = history[itemIndex].parts
+        p.splice(partIndex, 1)
+        if (p.length === 0) history.splice(itemIndex, 1)
         setHistory([...history])
-    }
-
-    const formatHistoryItem = (item, index) => {
-        return item.parts.map(formatHistoryPart(index, item.role))
-    }
-
-    const formatPart = (item) => {
-        return <>
-            {item.text && <Markdown markdown={item.text}/>}
-            {item.inlineData && <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}
-                                     style={{maxWidth: "100px", maxHeight: "100px"}}
-                                     alt="input image"
-            />
-            }
-        </>
-    }
-
-    const formatHistoryPart = (historyIndex, role) => (item, index) => {
-        return (<>
-                <Grid xs={2}>
-                    {role && index === 0 && <Typography variant="subtitle2">{role.toUpperCase()}</Typography>}
-                </Grid>
-                <Grid xs={9}>
-                    {formatPart(item)}
-                </Grid>
-                <Grid xs={1}>
-                    <DeleteForever onClick={deleteHistoryItem(historyIndex, index)}/>
-                </Grid>
-            </>
-        )
-    }
-
-    const formatPromptPart = (item, index) => {
-        return (<>
-                <Grid xs={2}>
-                </Grid>
-                <Grid xs={9}>
-                    {formatPart(item)}
-                </Grid>
-                <Grid xs={1}>
-                    <DeleteForever onClick={deletePromptItem(index)}/>
-                </Grid>
-            </>
-        )
     }
 
     const submitText = async (e) => {
@@ -171,43 +279,6 @@ function Gemini() {
         setError("")
     }
 
-    const serialiseState = () => {
-        return btoa(JSON.stringify({
-            history,
-            parts,
-            temperature,
-            topK,
-            topP,
-            sexuallyExplicitThreshold,
-            hateSpeechThreshold,
-            harassmentThreshold,
-            dangerousContentThreshold,
-        }))
-    }
-
-    const deserialiseState = (state) => {
-        const j = JSON.parse(atob(state))
-        setHistory(j.history)
-        setParts(j.parts)
-        setTemperature(j.temperature)
-        setTopK(j.topK)
-        setTopP(j.topP)
-        setSexuallyExplicitThreshold(j.sexuallyExplicitThreshold)
-        setHateSpeechThreshold(j.hateSpeechThreshold)
-        setHarassmentThreshold(j.harassmentThreshold)
-        setDangerousContentThreshold(j.dangerousContentThreshold)
-    }
-
-    const copyState = (e) => {
-        const serialised = serialiseState()
-        navigator.clipboard.writeText(serialised)
-    }
-
-    const importState = (e) => {
-        deserialiseState(shareCode)
-        setShareDialogOpen(false)
-    }
-
     useEffect(() => {
         if (!upload) return
         const inlineData = {
@@ -219,70 +290,14 @@ function Gemini() {
         setUpload(false)
     }, [upload])
 
-    const ShareDialog = () => (<>
-        <Dialog
-            open={shareDialogOpen}
-            onClose={()=>setShareDialogOpen(false)}
-            PaperProps={{
-                component: 'form',
-                onSubmit: (event) => {
-                    event.preventDefault()
-                    const formData = new FormData(event.currentTarget)
-                    const formJson = Object.fromEntries((formData).entries())
-                    const email = formJson.email
-                    console.log(email)
-                    setShareDialogOpen(false)
-                },
-            }}
-        >
-            <DialogTitle>Share</DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    Paste a shared prompt in here and press IMPORT, or press COPY to put a share code in your clipboard.
-                    Prompts with images in are too big to share in this way.
-
-                    <Typography color={"warning"}>Pressing IMPORT will erase any work you have in the current prompt.</Typography>
-                </DialogContentText>
-                <TextField
-                    autoFocus
-                    required
-                    margin="dense"
-                    id="name"
-                    name="email"
-                    label="Share Code"
-                    type="email"
-                    fullWidth
-                    variant="standard"
-                    onChange={(e) => setShareCode(e.target.value)}
-                />
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={()=>setShareDialogOpen(false)}>Cancel</Button>
-                <Button onClick={copyState}>Copy</Button>
-                <Button onClick={importState}>Import</Button>
-            </DialogActions>
-        </Dialog>
-    </>)
-
-    const VisuallyHiddenInput = styled('input')({
-        clip: 'rect(0 0 0 0)',
-        clipPath: 'inset(50%)',
-        height: 1,
-        overflow: 'hidden',
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        whiteSpace: 'nowrap',
-        width: 1,
-    })
 
     return (
     <Grid container spacing={2}>
         <Grid xs={12}><Typography variant="h6" hidden={history.length === 0}>Prompt history</Typography></Grid>
-        {history.map(formatHistoryItem)}
+        {history.map((part, i) => <PromptHistoryItem item={part} itemIndex={i} deleteHistoryPart={deleteHistoryPart}/>)}
 
         <Grid xs={12}><Typography variant="h6">Build your prompt</Typography></Grid>
-        {parts.map(formatPromptPart)}
+        {parts.map((part, i)=><PromptBuilderPart item={part} index={i} deletePromptItem={deletePromptItem}/>)}
 
         <Grid xs={12} md={6}>
             <TextField label="Add some text to your prompt"
@@ -299,7 +314,7 @@ function Gemini() {
                                </InputAdornment>
                            ),
                        }}
-                       helperText="At least one text item is required for each prompt you submit. Images are optional."
+                       helperText="At least one text item is required for each prompt you submit. Images are optional. <Shift>+Enter to make a new line."
             />
         </Grid>
 
@@ -351,9 +366,13 @@ function Gemini() {
                         variant="outlined"
                         endIcon={<IosShare/>}
                 >
-                    Share
+                    Share / Import
                 </Button>
-                <ShareDialog/>
+                <ShareDialog open={shareDialogOpen}
+                             handleClose={()=>setShareDialogOpen(false)}
+                             serialiseState={serialiseState}
+                             deserialiseState={deserialiseState}
+                />
             </Stack>
         </Grid>
 
