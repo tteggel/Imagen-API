@@ -238,7 +238,7 @@ function Gemini() {
     }
 
     const generateText = async () => {
-        if (parts.length === 0) return
+        console.log(history)
         const rq = {
             contents: history,
             generationConfig: {temperature, topP, topK},
@@ -274,7 +274,7 @@ function Gemini() {
     const onFormSubmit = async (e) => {
         e.preventDefault()
         if (text.length > 0) await submitText()
-        history.push({role: "USER", parts})
+        if (parts.length > 0) history.push({role: "USER", parts})
         setHistory([...history])
         setText("")
         setLoading(true)

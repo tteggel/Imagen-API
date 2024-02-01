@@ -77,7 +77,7 @@ const generateText = async (rq) => {
         const lines = raw.split("\r\n")
         const trimmed = lines.map(line => line.slice(6)).filter(line => line.length > 0)
         const jsons = trimmed.map(trim => JSON.parse(trim))
-        return {role:"model", parts: [{text:jsons.reduce((p, c) => p + c.candidates[0].content.parts[0].text, "")}]}
+        return {role:"model", parts: [{text:jsons.reduce((p, c) => p + (c?.candidates?.[0]?.content?.parts?.[0]?.text ?? ""), "")}]}
     }
     catch (err) {
         console.log(err)
