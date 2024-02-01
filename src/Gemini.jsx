@@ -1,6 +1,6 @@
 import {
     Accordion, AccordionDetails, AccordionSummary, Box,
-    Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl,
+    Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, IconButton,
     InputAdornment, InputLabel, MenuItem, Slider, Stack,
     styled,
     TextField, Tooltip,
@@ -9,30 +9,80 @@ import {
 import LoadingSpinner from "./LoadingSpinner.jsx"
 import React, {useEffect, useState} from "react"
 import Grid from "@mui/material/Unstable_Grid2"
-import {Textsms, AddCircle, DeleteForever, Info} from "@mui/icons-material"
+import {Textsms, AddCircle, DeleteForever, Info, CheckCircle, Close} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
-import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare} from "@mui/icons-material/"
+import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare, Edit} from "@mui/icons-material/"
 
-const PromptPart = ({item}) => {
-    return <>
-        {item.text && <Markdown markdown={item.text}/>}
-        {item.inlineData && <img src={`data:${item.inlineData.mimeType};base64,${item.inlineData.data}`}
-                                 style={{maxWidth: "100px", maxHeight: "100px"}}
-                                 alt="input image"
-        />
+const TextPart = ({part, edit = false, handlePartTextChange, handleEditEnd}) => {
+    const [text, setText] = useState(part.text.replace("\n\n", "\n"))
+    const handleEditCommit = () => {
+        handlePartTextChange(text.replace("\n", "\n\n"))
+        handleEditEnd()
+    }
+
+    const handleKeyPress = (e) => {
+        if (e.keyCode === 13) {
+            if (e.shiftKey) return
+            handleEditCommit()
+            return
         }
-    </>
+
+        if (e.keyCode === 27) {
+            handleEditEnd()
+            return
+        }
+    }
+
+    if (edit) return (
+        <Box>
+            <TextField multiline
+                       fullWidth
+                       value={text}
+                       onChange={(e)=>setText(e.target.value)}
+                       onKeyDown={handleKeyPress}
+                       InputProps={{
+                           endAdornment: (
+                               <InputAdornment position='end'>
+                                   <IconButton onClick={handleEditCommit}><CheckCircle/></IconButton>
+                                   <IconButton onClick={handleEditEnd}><Close/></IconButton>
+                               </InputAdornment>
+                           ),
+                       }}/>
+
+        </Box>
+    )
+
+    return (
+        <Markdown markdown={part.text}/>
+    )
 }
 
-const PromptBuilderPart = ({item, index, deletePromptItem}) => {
-    return (<>
+const ImagePart = ({part}) => (
+    <img src={`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`}
+         style={{maxWidth: "100px", maxHeight: "100px"}}
+         alt="input image"
+    />
+)
+
+const PromptPart = ({part, edit = false, handlePartTextChange, handleEditEnd}) => {
+    if (part.text !== undefined) return <TextPart part={part} edit={edit} handlePartTextChange={handlePartTextChange} handleEditEnd={handleEditEnd}/>
+    if (part.inlineData) return  <ImagePart part={part}/>
+    return <></>
+}
+
+const PromptBuilderPart = ({part, index, deletePromptItem, handleBuilderPartTextChange}) => {
+    const [edit, setEdit] = useState(false)
+
+    return (
+        <>
             <Grid xs={2}>
             </Grid>
-            <Grid xs={9}>
-                <PromptPart item={item}/>
+            <Grid xs={8}>
+                <PromptPart part={part} edit={edit} handlePartTextChange={handleBuilderPartTextChange(index)} handleEditEnd={()=>setEdit(false)}/>
             </Grid>
-            <Grid xs={1}>
-                <DeleteForever onClick={deletePromptItem(index)}/>
+            <Grid xs={2}>
+                <IconButton onClick={deletePromptItem(index)}><DeleteForever/></IconButton>
+                {part.text !== undefined && !edit && <IconButton onClick={() => setEdit(!edit)}><Edit/></IconButton>}
             </Grid>
         </>
     )
@@ -44,16 +94,20 @@ const PromptHistoryItem = (props) => {
     )
 }
 
-const PromptHistoryPart = ({item, itemIndex, part, partIndex, deleteHistoryPart}) => {
-    return (<>
+const PromptHistoryPart = ({item, itemIndex, part, partIndex, deleteHistoryPart, handleHistoryPartTextChange}) => {
+    const [edit, setEdit] = useState(false)
+
+    return (
+        <>
             <Grid xs={2}>
                 {item.role && partIndex === 0 && <Typography variant="subtitle2">{item.role.toUpperCase()}</Typography>}
             </Grid>
-            <Grid xs={9}>
-                <PromptPart item={part}/>
+            <Grid xs={8}>
+                <PromptPart part={part} edit={edit} handlePartTextChange={handleHistoryPartTextChange(itemIndex, partIndex)} handleEditEnd={()=>setEdit(false)}/>
             </Grid>
-            <Grid xs={1}>
-                <DeleteForever onClick={deleteHistoryPart(itemIndex, partIndex)}/>
+            <Grid xs={2}>
+                <IconButton onClick={deleteHistoryPart(itemIndex, partIndex)}><DeleteForever/></IconButton>
+                {part.text !== undefined && !edit && <IconButton onClick={() => setEdit(!edit)}><Edit/></IconButton>}
             </Grid>
         </>
     )
@@ -94,7 +148,8 @@ const ShareDialog = ({open, handleClose, serialiseState, deserialiseState}) => {
                 <DialogContentText>
                     Paste a shared prompt in here and press IMPORT, or press COPY to put a share code in your clipboard.
                     Prompts with images in are too big to share in this way.
-                    <Typography color="warning" variant="body1" sx={{color:"red"}}><strong>Pressing IMPORT will erase any work you have in the current prompt.</strong></Typography>
+                    <Typography sx={{color: "orange"}}><strong>Pressing IMPORT will erase any work you have in the
+                        current prompt.</strong></Typography>
                 </DialogContentText>
                 <TextField
                     autoFocus
@@ -110,7 +165,7 @@ const ShareDialog = ({open, handleClose, serialiseState, deserialiseState}) => {
                     onKeyDown={handleShareCodeSubmit}
                 />
             </DialogContent>
-            <DialogActions  sx={{ justifyContent: "space-between" }}>
+            <DialogActions sx={{justifyContent: "space-between"}}>
                 <Button onClick={copyState}
                         disabled={copiedState}
                         variant="outlined"
@@ -153,6 +208,7 @@ function Gemini() {
     const [harassmentThreshold, setHarassmentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [dangerousContentThreshold, setDangerousContentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [shareDialogOpen, setShareDialogOpen] = useState(false)
+    const [dirty, setDirty] = useState(false)
 
     const serialiseState = () => {
         return btoa(JSON.stringify({
@@ -182,21 +238,21 @@ function Gemini() {
     }
 
     const generateText = async () => {
-        if(parts.length === 0) return
+        if (parts.length === 0) return
         const rq = {
             contents: history,
-            generationConfig: { temperature, topP, topK },
-            safetySettings:[
-                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: sexuallyExplicitThreshold },
-                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: hateSpeechThreshold },
-                { category: "HARM_CATEGORY_HARASSMENT", threshold: harassmentThreshold },
-                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: dangerousContentThreshold }
+            generationConfig: {temperature, topP, topK},
+            safetySettings: [
+                {category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: sexuallyExplicitThreshold},
+                {category: "HARM_CATEGORY_HATE_SPEECH", threshold: hateSpeechThreshold},
+                {category: "HARM_CATEGORY_HARASSMENT", threshold: harassmentThreshold},
+                {category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: dangerousContentThreshold}
             ]
         }
         try {
             const rs = await fetch("/api/generate-text", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify(rq)
             })
             if (!rs.ok) {
@@ -209,8 +265,7 @@ function Gemini() {
 
             history.push(body)
             setHistory([...history])
-        }
-        catch(err){
+        } catch (err) {
             setError(err.message)
             setLoading(false)
         }
@@ -218,14 +273,14 @@ function Gemini() {
 
     const onFormSubmit = async (e) => {
         e.preventDefault()
-        if(text.length > 0) await submitText()
-        history.push({role:"USER", parts})
+        if (text.length > 0) await submitText()
+        history.push({role: "USER", parts})
         setHistory([...history])
         setText("")
         setLoading(true)
         setError("")
         setParts([])
-        console.log(history)
+        setDirty(false)
         return generateText()
     }
 
@@ -239,6 +294,7 @@ function Gemini() {
         p.splice(partIndex, 1)
         if (p.length === 0) history.splice(itemIndex, 1)
         setHistory([...history])
+        setDirty(true)
     }
 
     const submitText = async (e) => {
@@ -279,6 +335,18 @@ function Gemini() {
         setError("")
     }
 
+    const handleBuilderPartTextChange = (partIndex) => (text) => {
+        parts[partIndex].text = text
+        setParts([...parts])
+        setDirty(true)
+    }
+
+    const handleHistoryPartTextChange = (itemIndex, partIndex) => (text) => {
+        history[itemIndex].parts[partIndex].text = text
+        setHistory([...history])
+        setDirty(true)
+    }
+
     useEffect(() => {
         if (!upload) return
         const inlineData = {
@@ -292,221 +360,238 @@ function Gemini() {
 
 
     return (
-    <Grid container spacing={2}>
-        <Grid xs={12}><Typography variant="h6" hidden={history.length === 0}>Prompt history</Typography></Grid>
-        {history.map((part, i) => <PromptHistoryItem item={part} itemIndex={i} deleteHistoryPart={deleteHistoryPart}/>)}
+        <Grid container spacing={2}>
+            <Grid xs={12}><Typography variant="h6" hidden={history.length === 0}>Prompt history</Typography></Grid>
+            {history.map((part, i) => <PromptHistoryItem item={part} itemIndex={i}
+                                                         deleteHistoryPart={deleteHistoryPart}
+                                                         handleHistoryPartTextChange={handleHistoryPartTextChange}
+                                                         makeDirty={()=>setDirty(true)}
+                                      />)}
 
-        <Grid xs={12}><Typography variant="h6">Build your prompt</Typography></Grid>
-        {parts.map((part, i)=><PromptBuilderPart item={part} index={i} deletePromptItem={deletePromptItem}/>)}
+            <Grid xs={12}><Typography variant="h6">Build your prompt</Typography></Grid>
+            {parts.map((part, i) => <PromptBuilderPart part={part}
+                                                       index={i}
+                                                       deletePromptItem={deletePromptItem}
+                                                       handleBuilderPartTextChange={handleBuilderPartTextChange}
+                                    />)}
 
-        <Grid xs={12} md={6}>
-            <TextField label="Add some text to your prompt"
-                       variant="outlined"
-                       multiline
-                       fullWidth
-                       value={text}
-                       onChange={e => setText(e.target.value)}
-                       onKeyDown={submitText}
-                       InputProps={{
-                           endAdornment: (
-                               <InputAdornment position="end" onClick={submitText}>
-                                   <AddCircle color={text.length > 0 ? "primary" : "text.disabled"}/>
-                               </InputAdornment>
-                           ),
-                       }}
-                       helperText="At least one text item is required for each prompt you submit. Images are optional. <Shift>+Enter to make a new line."
-            />
-        </Grid>
-
-        <Grid xs={12} md={6}>
-            <Button component="label"
-                    variant="outlined"
-                    startIcon={<AddPhotoAlternate/>}
-                    color="secondary"
-                    size="large"
-                    sx={{height: "56px", overflow: "hidden"}}
-                    fullWidth
-            >
-                Add an image to your prompt
-                <VisuallyHiddenInput type="file"
-                                     accept="image/png,image/jpeg"
-                                     onChange={handleUploadClick}
+            <Grid xs={12} md={6}>
+                <TextField label="Add some text to your prompt"
+                           variant="outlined"
+                           multiline
+                           fullWidth
+                           value={text}
+                           onChange={e => setText(e.target.value)}
+                           onKeyDown={submitText}
+                           InputProps={{
+                               endAdornment: (
+                                   <InputAdornment position="end" onClick={submitText}>
+                                       <AddCircle color={text.length > 0 ? "primary" : "text.disabled"}/>
+                                   </InputAdornment>
+                               ),
+                           }}
+                           helperText="At least one text item is required for each prompt you submit. Images are optional. <Shift>+Enter to make a new line."
                 />
-            </Button>
-        </Grid>
+            </Grid>
 
-        <Grid xs={12}>
-            <Stack spacing={2} direction="row">
-
-                <Button onClick={onFormSubmit}
-                        type="submit"
+            <Grid xs={12} md={6}>
+                <Button component="label"
+                        variant="outlined"
+                        startIcon={<AddPhotoAlternate/>}
+                        color="secondary"
                         size="large"
-                        variant="contained"
-                        disabled={parts.length <= 0
-                            || loading
-                            || !parts.some(p=>p.text !== undefined)}
-                        endIcon={loading ? <LoadingSpinner/> : <Textsms/>}
+                        sx={{height: "56px", overflow: "hidden"}}
                         fullWidth
-                        sx={{minHeight: "56px"}}
                 >
-                    Submit Prompt
+                    Add an image to your prompt
+                    <VisuallyHiddenInput type="file"
+                                         accept="image/png,image/jpeg"
+                                         onChange={handleUploadClick}
+                    />
                 </Button>
+            </Grid>
 
-                <Button onClick={clearAll}
-                        size="large"
-                        variant="outlined"
-                        disabled={(parts.length <= 0 && history.length <= 0) || loading}
-                        endIcon={<ClearAll/>}
-                >
-                    Clear All
-                </Button>
+            <Grid xs={12}>
+                <Stack spacing={2} direction="row">
 
-                <Button onClick={()=>setShareDialogOpen(true)}
-                        size="large"
-                        variant="outlined"
-                        endIcon={<IosShare/>}
-                >
-                    Share / Import
-                </Button>
-                <ShareDialog open={shareDialogOpen}
-                             handleClose={()=>setShareDialogOpen(false)}
-                             serialiseState={serialiseState}
-                             deserialiseState={deserialiseState}
-                />
-            </Stack>
-        </Grid>
+                    <Button onClick={onFormSubmit}
+                            type="submit"
+                            size="large"
+                            variant="contained"
+                            disabled={
+                                (parts.length <= 0
+                                    || loading
+                                    || !parts.some(p => p.text !== undefined)
+                                )
+                                && !dirty
+                            }
+                            endIcon={loading ? <LoadingSpinner/> : <Textsms/>}
+                            fullWidth
+                            sx={{minHeight: "56px"}}
+                    >
+                        {dirty ? "Re-submit Prompt" : "Submit Prompt"}
+                    </Button>
 
-        <Grid xs={12}>
-            <Accordion>
-                <AccordionSummary
-                    expandIcon={<ArrowDropDown/>}
-                    aria-controls="panel1-content"
-                    id="panel1-header"
-                >
-                    <Typography>Safety settings</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Stack spacing={2}>
-                        <TextField label="Sexually Explicit Threshold"
-                                   select
-                                   value={sexuallyExplicitThreshold}
-                                   onChange={e => setSexuallyExplicitThreshold(e.target.value)}
-                        >
-                            {harmCategories()}
-                        </TextField>
-                        <TextField label="Hate Speech Threshold"
-                                   select
-                                   value={hateSpeechThreshold}
-                                   onChange={e => setHateSpeechThreshold(e.target.value)}
-                        >
-                            {harmCategories()}
-                        </TextField>
-                        <TextField label="Harassment Threshold"
-                                   select
-                                   value={harassmentThreshold}
-                                   onChange={e => setHarassmentThreshold(e.target.value)}
-                        >
-                            {harmCategories()}
-                        </TextField>
-                        <TextField label="Dangerous Content Threshold"
-                                   select
-                                   value={dangerousContentThreshold}
-                                   onChange={e => setDangerousContentThreshold(e.target.value)}
-                        >
-                            {harmCategories()}
-                        </TextField>
-                    </Stack>
-                </AccordionDetails>
-            </Accordion>
-            <Accordion>
-                <AccordionSummary
-                    expandIcon={<ArrowDropDown/>}
-                    aria-controls="panel2-content"
-                    id="panel2-header"
-                >
-                    <Typography>Advanced settings</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Stack spacing={2}
-                           direction="row"
-                           sx={{mb: 1}}
-                           alignItems="center">
-                        <FormControl fullWidth>
-                            <InputLabel id="temperature-slider">Temperature</InputLabel>
-                            <Slider min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={temperature}
-                                    aria-labelledby="temperature-slider"
-                                    valueLabelDisplay="auto"
-                                    onChange={e => setTemperature(e.target.value)}
-                            />
-                        </FormControl>
-                        <Tooltip title={<Typography>Lower temperatures are good for prompts that require a more deterministic
+                    <Button onClick={clearAll}
+                            size="large"
+                            variant="outlined"
+                            disabled={(parts.length <= 0 && history.length <= 0) || loading}
+                            endIcon={<ClearAll/>}
+                    >
+                        Clear All
+                    </Button>
+
+                    <Button onClick={() => setShareDialogOpen(true)}
+                            size="large"
+                            variant="outlined"
+                            endIcon={<IosShare/>}
+                    >
+                        Share / Import
+                    </Button>
+                    <ShareDialog open={shareDialogOpen}
+                                 handleClose={() => setShareDialogOpen(false)}
+                                 serialiseState={serialiseState}
+                                 deserialiseState={deserialiseState}
+                    />
+                </Stack>
+            </Grid>
+
+            <Grid xs={12}>
+                <Accordion>
+                    <AccordionSummary
+                        expandIcon={<ArrowDropDown/>}
+                        aria-controls="panel1-content"
+                        id="panel1-header"
+                    >
+                        <Typography>Safety settings</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Stack spacing={2}>
+                            <TextField label="Sexually Explicit Threshold"
+                                       select
+                                       value={sexuallyExplicitThreshold}
+                                       onChange={e => setSexuallyExplicitThreshold(e.target.value)}
+                            >
+                                {harmCategories()}
+                            </TextField>
+                            <TextField label="Hate Speech Threshold"
+                                       select
+                                       value={hateSpeechThreshold}
+                                       onChange={e => setHateSpeechThreshold(e.target.value)}
+                            >
+                                {harmCategories()}
+                            </TextField>
+                            <TextField label="Harassment Threshold"
+                                       select
+                                       value={harassmentThreshold}
+                                       onChange={e => setHarassmentThreshold(e.target.value)}
+                            >
+                                {harmCategories()}
+                            </TextField>
+                            <TextField label="Dangerous Content Threshold"
+                                       select
+                                       value={dangerousContentThreshold}
+                                       onChange={e => setDangerousContentThreshold(e.target.value)}
+                            >
+                                {harmCategories()}
+                            </TextField>
+                        </Stack>
+                    </AccordionDetails>
+                </Accordion>
+                <Accordion>
+                    <AccordionSummary
+                        expandIcon={<ArrowDropDown/>}
+                        aria-controls="panel2-content"
+                        id="panel2-header"
+                    >
+                        <Typography>Advanced settings</Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Stack spacing={2}
+                               direction="row"
+                               sx={{mb: 1}}
+                               alignItems="center">
+                            <FormControl fullWidth>
+                                <InputLabel id="temperature-slider">Temperature</InputLabel>
+                                <Slider min={0}
+                                        max={1}
+                                        step={0.01}
+                                        value={temperature}
+                                        aria-labelledby="temperature-slider"
+                                        valueLabelDisplay="auto"
+                                        onChange={e => setTemperature(e.target.value)}
+                                />
+                            </FormControl>
+                            <Tooltip title={<Typography>Lower temperatures are good for prompts that require a more
+                                deterministic
                                 and less open-ended or creative response, while higher temperatures can lead to more
                                 diverse or creative results. A temperature of 0 will always return the same answer for
                                 the same prompt.</Typography>}
-                        >
-                            <Info/>
-                        </Tooltip>
-                    </Stack>
+                            >
+                                <Info/>
+                            </Tooltip>
+                        </Stack>
 
-                    <Stack spacing={2}
-                           direction="row"
-                           sx={{mb: 1}}
-                           alignItems="center">
-                        <FormControl fullWidth>
-                            <InputLabel id="topk-slider">Top-K</InputLabel>
-                            <Slider min={0}
-                                    max={40}
-                                    step={1}
-                                    value={topK}
-                                    aria-labelledby="topk-slider"
-                                    valueLabelDisplay="auto"
-                                    onChange={e => setTopK(e.target.value)}
-                            />
-                        </FormControl>
-                        <Tooltip title={<Typography>Specify a lower value for less random responses and a higher value for
-                                more random responses.</Typography>}
-                        >
-                            <Info/>
-                        </Tooltip>
-                    </Stack>
+                        <Stack spacing={2}
+                               direction="row"
+                               sx={{mb: 1}}
+                               alignItems="center">
+                            <FormControl fullWidth>
+                                <InputLabel id="topk-slider">Top-K</InputLabel>
+                                <Slider min={0}
+                                        max={40}
+                                        step={1}
+                                        value={topK}
+                                        aria-labelledby="topk-slider"
+                                        valueLabelDisplay="auto"
+                                        onChange={e => setTopK(e.target.value)}
+                                />
+                            </FormControl>
+                            <Tooltip
+                                title={<Typography>Specify a lower value for less random responses and a higher value
+                                    for
+                                    more random responses.</Typography>}
+                            >
+                                <Info/>
+                            </Tooltip>
+                        </Stack>
 
-                    <Stack spacing={2}
-                           direction="row"
-                           sx={{mb: 1}}
-                           alignItems="center">
-                        <FormControl fullWidth>
-                            <InputLabel id="topp-slider">Top-P</InputLabel>
-                            <Slider min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={topP}
-                                    aria-labelledby="topp-slider"
-                                    valueLabelDisplay="auto"
-                                    onChange={e => setTopP(e.target.value)}
-                            />
-                        </FormControl>
-                        <Tooltip title={<Typography>Specify a lower value for less random responses and a higher value for
-                                more random responses.</Typography>}
-                        >
-                            <Info/>
-                        </Tooltip>
-                    </Stack>
-                </AccordionDetails>
-            </Accordion>
+                        <Stack spacing={2}
+                               direction="row"
+                               sx={{mb: 1}}
+                               alignItems="center">
+                            <FormControl fullWidth>
+                                <InputLabel id="topp-slider">Top-P</InputLabel>
+                                <Slider min={0}
+                                        max={1}
+                                        step={0.01}
+                                        value={topP}
+                                        aria-labelledby="topp-slider"
+                                        valueLabelDisplay="auto"
+                                        onChange={e => setTopP(e.target.value)}
+                                />
+                            </FormControl>
+                            <Tooltip
+                                title={<Typography>Specify a lower value for less random responses and a higher value
+                                    for
+                                    more random responses.</Typography>}
+                            >
+                                <Info/>
+                            </Tooltip>
+                        </Stack>
+                    </AccordionDetails>
+                </Accordion>
+            </Grid>
+
+            <Grid xs={12}>
+                {error.length > 0 && !loading &&
+                    <Typography sx={{whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>
+                        {error}
+                    </Typography>
+                }
+            </Grid>
+
         </Grid>
-
-        <Grid xs={12}>
-            {error.length > 0 && !loading &&
-                <Typography sx={{whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>
-                    {error}
-                </Typography>
-            }
-        </Grid>
-
-    </Grid>
     )
 }
 
