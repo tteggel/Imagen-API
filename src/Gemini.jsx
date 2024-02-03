@@ -452,6 +452,7 @@ function Gemini() {
                             type="submit"
                             size="large"
                             variant="contained"
+                            fullWidth
                             disabled={
                                 (parts.length <= 0
                                     || loading
@@ -468,6 +469,7 @@ function Gemini() {
                     <Button onClick={clearAll}
                             size="large"
                             variant="outlined"
+                            sx={{pr:5, pl:5}}
                             disabled={(parts.length <= 0 && history.length <= 0) || loading}
                             endIcon={<ClearAll/>}
                     >
@@ -475,11 +477,12 @@ function Gemini() {
                     </Button>
 
                     <Button onClick={() => setShareDialogOpen(true)}
+                            sx={{pr:5, pl:5}}
                             size="large"
                             variant="outlined"
                             endIcon={<IosShare/>}
                     >
-                        Share / Import
+                        Share&nbsp;/ Import
                     </Button>
                     <ShareDialog open={shareDialogOpen}
                                  handleClose={() => setShareDialogOpen(false)}
