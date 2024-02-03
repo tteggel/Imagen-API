@@ -1,6 +1,6 @@
 import {
     Accordion, AccordionDetails, AccordionSummary, Box,
-    Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControl, IconButton,
+    Button, FormControl, IconButton,
     InputAdornment, InputLabel, MenuItem, Slider, Stack,
     styled,
     TextField, Tooltip,
@@ -12,7 +12,8 @@ import Grid from "@mui/material/Unstable_Grid2"
 import {Textsms, AddCircle, DeleteForever, Info, CheckCircle, Close} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
 import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare, Edit} from "@mui/icons-material/"
-import {useDebounce, useLocalStorage} from "react-use";
+import {useDebounce, useLocalStorage} from "react-use"
+import {useLocation, useNavigate} from "react-router-dom"
 
 const TextPart = ({part, edit = false, handlePartTextChange, handleEditEnd}) => {
     const [text, setText] = useState(part.text.replace("\n\n", "\n"))
@@ -114,74 +115,6 @@ const PromptHistoryPart = ({item, itemIndex, part, partIndex, deleteHistoryPart,
     )
 }
 
-const ShareDialog = ({open, handleClose, serialiseState, deserialiseState}) => {
-    const [shareCode, setShareCode] = useState("")
-    const [copiedState, setCopiedState] = useState(false)
-
-    const copyState = () => {
-        const serialised = serialiseState()
-        setCopiedState(true)
-        setTimeout(() => setCopiedState(false), 5000)
-        return navigator.clipboard.writeText(serialised)
-    }
-
-    const importState = () => {
-        if (shareCode.length === 0) return
-        deserialiseState(shareCode)
-        handleClose()
-    }
-
-    const handleShareCodeChange = (e) => {
-        setShareCode(e.target.value)
-    }
-
-    const handleShareCodeSubmit = (e) => {
-        if (e.keyCode === 13) importState()
-    }
-
-    return (<>
-        <Dialog
-            open={open}
-            onClose={handleClose}
-        >
-            <DialogTitle>Share</DialogTitle>
-            <DialogContent>
-                <DialogContentText>
-                    Paste a shared prompt in here and press IMPORT, or press COPY to put a share code in your clipboard.
-                    Prompts with images in are too big to share in this way.
-                    <Typography sx={{color: "orange"}}><strong>Pressing IMPORT will erase any work you have in the
-                        current prompt.</strong></Typography>
-                </DialogContentText>
-                <TextField
-                    autoFocus
-                    required
-                    margin="dense"
-                    id="name"
-                    name="email"
-                    label="Share Code"
-                    type="email"
-                    fullWidth
-                    variant="standard"
-                    onChange={handleShareCodeChange}
-                    onKeyDown={handleShareCodeSubmit}
-                />
-            </DialogContent>
-            <DialogActions sx={{justifyContent: "space-between"}}>
-                <Button onClick={copyState}
-                        disabled={copiedState}
-                        variant="outlined"
-                >
-                    {copiedState ? "Copied!" : "Copy"}
-                </Button>
-                <Box>
-                    <Button onClick={handleClose}>Cancel</Button>
-                    <Button onClick={importState} variant="contained">Import</Button>
-                </Box>
-            </DialogActions>
-        </Dialog>
-    </>)
-}
-
 const VisuallyHiddenInput = styled('input')({
     clip: 'rect(0 0 0 0)',
     clipPath: 'inset(50%)',
@@ -208,8 +141,11 @@ function Gemini() {
     const [hateSpeechThreshold, setHateSpeechThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [harassmentThreshold, setHarassmentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
     const [dangerousContentThreshold, setDangerousContentThreshold] = useState("BLOCK_LOW_AND_ABOVE")
-    const [shareDialogOpen, setShareDialogOpen] = useState(false)
     const [dirty, setDirty] = useState(false)
+    const [copiedState, setCopiedState] = useState(false)
+
+    const {pathname} = useLocation()
+    const navigate = useNavigate()
 
     const [,] = useDebounce(
         () => {
@@ -231,15 +167,23 @@ function Gemini() {
         ]
 
     )
+
     useEffect(
         () => {
-            deserialiseState(savedState)
+            if (pathname.startsWith("/gemini/import/")) {
+                navigate("/gemini", {replace: true})
+                const parts = pathname.split("/")
+                parts.splice(0,3)
+                deserialiseState(parts[0])
+
+            } else {
+                deserialiseState(savedState)
+            }
         },
         []
     )
 
     const serialiseState = () => {
-
         return btoa(JSON.stringify({
             history,
             parts,
@@ -255,7 +199,6 @@ function Gemini() {
         }))
     }
     const deserialiseState = (state) => {
-
         const j = JSON.parse(atob(state))
         setHistory(j.history ?? [])
         setParts(j.parts ?? [])
@@ -272,7 +215,6 @@ function Gemini() {
     const [savedState, setSavedState] = useLocalStorage("geminiState", serialiseState())
 
     const generateText = async () => {
-        console.log(history)
         const rq = {
             contents: history,
             generationConfig: {temperature, topP, topK},
@@ -381,6 +323,14 @@ function Gemini() {
         setDirty(true)
     }
 
+    const copyLink = () => {
+        const hostName = import.meta.env.MODE === "development" ? "http://localhost:8080/ai/" : import.meta.env.BASE_URL
+        const serialised = serialiseState()
+        setCopiedState(true)
+        setTimeout(() => setCopiedState(false), 2500)
+        return navigator.clipboard.writeText(`${hostName}gemini/import/${serialised}`)
+    }
+
     useEffect(() => {
         if (!upload) return
         const inlineData = {
@@ -420,7 +370,7 @@ function Gemini() {
                            InputProps={{
                                endAdornment: (
                                    <InputAdornment position="end" onClick={submitText}>
-                                       <AddCircle color={text.length > 0 ? "primary" : "text.disabled"}/>
+                                       <CheckCircle color={text.length > 0 ? "primary" : "text.disabled"}/>
                                    </InputAdornment>
                                ),
                            }}
@@ -476,19 +426,14 @@ function Gemini() {
                         Clear All
                     </Button>
 
-                    <Button onClick={() => setShareDialogOpen(true)}
+                    <Button onClick={copyLink}
                             sx={{pr:5, pl:5}}
                             size="large"
                             variant="outlined"
                             endIcon={<IosShare/>}
                     >
-                        Share&nbsp;/ Import
+                        {!copiedState ? "Copy Link" : "Copied"}
                     </Button>
-                    <ShareDialog open={shareDialogOpen}
-                                 handleClose={() => setShareDialogOpen(false)}
-                                 serialiseState={serialiseState}
-                                 deserialiseState={deserialiseState}
-                    />
                 </Stack>
             </Grid>
 

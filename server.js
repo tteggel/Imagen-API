@@ -1,6 +1,7 @@
 import express from "express"
 import {GoogleAuth} from "google-auth-library"
 import {configDotenv} from "dotenv"
+import {join as pathJoin} from "path"
 
 configDotenv()
 
@@ -23,6 +24,10 @@ router.post("/api/generate-text", (req, res) => {
     generateText(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
 })
 
+router.get('/*', (req, res) => {
+    res.sendFile(pathJoin(__dirname, '/dist/index.html'))
+})
+
 app.use('/ai', router)
 app.use('/', router)
 
@@ -33,7 +38,7 @@ app.listen(port, () => {
 const generateImages = async (rq) => {
     const token = await auth.getAccessToken()
 
-    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.VITE_GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/imagegeneration@005:predict`,
+    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@005:predict`,
         {
             method: "POST",
             headers: {
@@ -59,7 +64,7 @@ const needsVisionModel = (rq) => {
 const generateText = async (rq) => {
     const token = await auth.getAccessToken()
 
-    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.VITE_GOOGLE_PROJECT_ID}/locations/us-central1/publishers/google/models/gemini-pro${needsVisionModel(rq)}:streamGenerateContent?alt=sse`,
+    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/gemini-pro${needsVisionModel(rq)}:streamGenerateContent?alt=sse`,
         {
             method: "POST",
             headers: {

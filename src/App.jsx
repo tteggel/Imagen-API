@@ -1,27 +1,45 @@
 import "./App.css"
-import {Box, Container, Tab, Typography} from "@mui/material"
-import Imagen2 from "./Imagen2.jsx";
-import Gemini from "./Gemini.jsx";
-import {useState} from "react";
-import {TabContext, TabList, TabPanel} from "@mui/lab";
+import {Box, Container, Tab, Tabs} from "@mui/material"
+import Imagen2 from "./Imagen2.jsx"
+import Gemini from "./Gemini.jsx"
+import {BrowserRouter, Route, Routes, useLocation, Link, Navigate} from "react-router-dom"
+
+function Router(props) {
+    const { children } = props
+    return (
+        <BrowserRouter initialEntries={['/imagen2']} initialIndex={0} basename="/ai">
+            {children}
+        </BrowserRouter>
+    )
+}
+
+function TheTabs() {
+    const { pathname } = useLocation()
+    const currentTab = ["imagen2", "/gemini"].includes(pathname) ? pathname : "/imagen2"
+    return (
+        <Tabs value={currentTab}>
+            <Tab label="Images" value="/imagen2" to="/imagen2" component={Link}/>
+            <Tab label="Text" value="/gemini" to="/gemini" component={Link}/>
+        </Tabs>
+    )
+}
 
 function App() {
-    const [tabPage, setTabPage] = useState("1")
     return (
-        <Container maxwidth="l">
-
-        <TabContext value={tabPage}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <TabList onChange={(e,v)=>setTabPage(v)}>
-                    <Tab label="Images" value="1" />
-                    <Tab label="Text" value="2" />
-                </TabList>
-            </Box>
-            <TabPanel value="1"><Imagen2/></TabPanel>
-            <TabPanel value="2"><Gemini/></TabPanel>
-        </TabContext>
-
-        </Container>
+        <Router>
+            <Container maxWidth="xl">
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <TheTabs/>
+                </Box>
+                <Box mt={2}>
+                <Routes>
+                    <Route path="/imagen2" element={<Imagen2/>}/>
+                    <Route path="/gemini/*" element={<Gemini/>}/>
+                    <Route path="*" element={<Navigate to="/imagen2"/>}/>
+                </Routes>
+                </Box>
+            </Container>
+        </Router>
     )
 }
 
