@@ -12,6 +12,7 @@ import Grid from "@mui/material/Unstable_Grid2"
 import {Textsms, AddCircle, DeleteForever, Info, CheckCircle, Close} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
 import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare, Edit} from "@mui/icons-material/"
+import {useDebounce, useLocalStorage} from "react-use";
 
 const TextPart = ({part, edit = false, handlePartTextChange, handleEditEnd}) => {
     const [text, setText] = useState(part.text.replace("\n\n", "\n"))
@@ -210,10 +211,39 @@ function Gemini() {
     const [shareDialogOpen, setShareDialogOpen] = useState(false)
     const [dirty, setDirty] = useState(false)
 
+    const [,] = useDebounce(
+        () => {
+            setSavedState(serialiseState())
+        },
+        1000,
+        [
+            history,
+            parts,
+            text,
+            temperature,
+            topP,
+            topK,
+            sexuallyExplicitThreshold,
+            hateSpeechThreshold,
+            harassmentThreshold,
+            dangerousContentThreshold,
+            dirty
+        ]
+
+    )
+    useEffect(
+        () => {
+            deserialiseState(savedState)
+        },
+        []
+    )
+
     const serialiseState = () => {
+
         return btoa(JSON.stringify({
             history,
             parts,
+            text,
             temperature,
             topK,
             topP,
@@ -221,21 +251,25 @@ function Gemini() {
             hateSpeechThreshold,
             harassmentThreshold,
             dangerousContentThreshold,
+            dirty,
         }))
     }
-
     const deserialiseState = (state) => {
+
         const j = JSON.parse(atob(state))
-        setHistory(j.history)
-        setParts(j.parts)
-        setTemperature(j.temperature)
-        setTopK(j.topK)
-        setTopP(j.topP)
-        setSexuallyExplicitThreshold(j.sexuallyExplicitThreshold)
-        setHateSpeechThreshold(j.hateSpeechThreshold)
-        setHarassmentThreshold(j.harassmentThreshold)
-        setDangerousContentThreshold(j.dangerousContentThreshold)
+        setHistory(j.history ?? [])
+        setParts(j.parts ?? [])
+        setText(j.text ?? "")
+        setTemperature(j.temperature ?? 0.9)
+        setTopK(j.topK ?? 1.0)
+        setTopP(j.topP ?? 32)
+        setSexuallyExplicitThreshold(j.sexuallyExplicitThreshold ?? "BLOCK_LOW_AND_ABOVE")
+        setHateSpeechThreshold(j.hateSpeechThreshold ?? "BLOCK_LOW_AND_ABOVE")
+        setHarassmentThreshold(j.harassmentThreshold ?? "BLOCK_LOW_AND_ABOVE")
+        setDangerousContentThreshold(j.dangerousContentThreshold ?? "BLOCK_LOW_AND_ABOVE")
+        setDirty(j.dirty ?? false)
     }
+    const [savedState, setSavedState] = useLocalStorage("geminiState", serialiseState())
 
     const generateText = async () => {
         console.log(history)
@@ -426,7 +460,6 @@ function Gemini() {
                                 && !dirty
                             }
                             endIcon={loading ? <LoadingSpinner/> : <Textsms/>}
-                            fullWidth
                             sx={{minHeight: "56px"}}
                     >
                         {dirty ? "Re-submit Prompt" : "Submit Prompt"}
@@ -538,7 +571,7 @@ function Gemini() {
                                alignItems="center">
                             <FormControl fullWidth>
                                 <InputLabel id="topk-slider">Top-K</InputLabel>
-                                <Slider min={0}
+                                <Slider min={1}
                                         max={40}
                                         step={1}
                                         value={topK}
