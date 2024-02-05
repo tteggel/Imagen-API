@@ -25,7 +25,7 @@ router.post("/api/generate-text", (req, res) => {
 })
 
 router.get('/*', (req, res) => {
-    res.sendFile(pathJoin(__dirname, '/dist/index.html'))
+    res.sendFile(pathJoin(import.meta.dirname, '/dist/index.html'))
 })
 
 app.use('/ai', router)
