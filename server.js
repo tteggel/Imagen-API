@@ -38,7 +38,9 @@ app.listen(port, () => {
 const generateImages = async (rq) => {
     const token = await auth.getAccessToken()
 
-    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@005:predict`,
+    const version = rq?.instances?.some((instance)=>instance?.image !== undefined) ?? false ? "002" : "005"
+
+    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@${version}:predict`,
         {
             method: "POST",
             headers: {

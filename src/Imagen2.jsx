@@ -4,25 +4,27 @@ import {
     Backdrop,
     Box,
     Button,
-    Dialog,
+    Dialog, DialogContent, DialogContentText, DialogTitle,
     FormControl, IconButton,
     ImageList,
     ImageListItem,
     InputLabel,
     List,
     ListItemText,
-    MenuItem,
+    MenuItem, Modal, Popover,
     Slider,
     Stack,
     TextField,
     Tooltip,
-    Typography
+    Typography, useTheme
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Info, Brush} from "@mui/icons-material"
-import {MaskEditor} from "./MaskEditor.jsx"
+import {Info, Brush, LineWeight} from "@mui/icons-material"
+import {MaskEditor, toMask} from "./MaskEditor.jsx"
 import "./Imagen2.css"
+import {Edit} from "@mui/icons-material/";
+import {useDebounce} from "react-use";
 
 const RaiReason = ({code}) =>  <Stack
     direction="row"
@@ -59,7 +61,7 @@ const Predictions = ({predictions, handlePredictionOpen}) => {
     )
 }
 
-const PredictionEditDialog = ({prediction, handleClose}) => {
+const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
     if (prediction === undefined
         || prediction.mimeType === undefined
         || prediction.bytesBase64Encoded === undefined) return
@@ -67,24 +69,144 @@ const PredictionEditDialog = ({prediction, handleClose}) => {
     if (!Boolean(prediction)) return
 
     const [hasMask, setHasMask] = useState(false)
-    const [mask, setMask] = useState("")
+    const [brushSizeOpen, setBrushSizeOpen] = useState(false)
     const [brushSize, setBrushSize] = useState(50)
+    const [editPromptDialogOpen, setEditPromptDialogOpen] = useState(false)
+    const [editPrompt, setEditPrompt] = useState("")
+    const [editNegativePrompt, setEditNegativePrompt] = useState("")
+
+
+    const theme = useTheme()
 
     const canvas = React.useRef()
 
     const dataUrl = `data:${prediction.mimeType};base64,${prediction.bytesBase64Encoded}`
 
+    useDebounce(()=> {
+        setBrushSizeOpen(false)
+    }, 1500, [brushSize])
+
+    const  submitEditPrompt = () => {
+        handleEdit({
+            baseImage: prediction,
+            editPrompt,
+            editNegativePrompt,
+            maskDataUrl: !hasMask ? undefined : toMask(canvas.current)
+        })
+        handleClose()
+    }
+
+    const handleKeyDown = (e) => {
+        if (e.keyCode !== 13) return
+        if (e.shiftKey) return
+        submitEditPrompt()
+    }
+
+    const EditPromptDialog = <Dialog open={editPromptDialogOpen}
+                                     onClose={()=>setEditPromptDialogOpen(false)}
+                             >
+        <DialogTitle>Edit Image</DialogTitle>
+        <DialogContent>
+            <Stack direction="column" spacing={2}>
+                <DialogContentText>Type your edit instructions below. If you have drawn using the brush tool then your instructions will only be applied to that area, otherwise your prompt will apply to the whole image.</DialogContentText>
+                <TextField label="Enter your prompt here"
+                           variant="outlined"
+                           fullWidth
+                           autoFocus
+                           multiline={true}
+                           value={editPrompt}
+                           error={editPrompt.length === 0}
+                           onChange={e => setEditPrompt(e.target.value)}
+                           helperText={editPrompt.length === 0 ? "Required" : undefined}
+                           onKeyDown={handleKeyDown}
+                />
+                <TextField label="Negative prompt (optional)"
+                           variant="outlined"
+                           fullWidth
+                           value={editNegativePrompt}
+                           onChange={e => setEditNegativePrompt(e.target.value)}
+                           onKeyDown={handleKeyDown}
+                />
+                <Button variant="contained"
+                        fullWidth
+                        onClick={()=>submitEditPrompt()}
+                >
+                    Submit Prompt
+                </Button>
+            </Stack>
+        </DialogContent>
+    </Dialog>
+
+    const EditToolTray = <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}>
+        <Tooltip title={!hasMask ? "Open Image Editing Tools" : "Close Image Editing Tools"} placement="bottom-end">
+            <IconButton size="large"
+                        color={hasMask ? "primary" : "default"}
+                        onClick={() => setHasMask(!hasMask)}
+            >
+                <Brush/>
+            </IconButton>
+        </Tooltip>
+        {hasMask && <>
+            <Stack direction="column" spacing={0} maxHeight={300}>
+                <Tooltip title="Brush Size" placement="bottom-end">
+                    <IconButton size="large"
+                                color={brushSizeOpen ? "primary" : "default"}
+                                onClick={(e) => setBrushSizeOpen(Boolean(brushSizeOpen) ? undefined : e.currentTarget)}
+                    >
+                        <LineWeight/>
+                    </IconButton>
+                </Tooltip>
+                <Popover open={Boolean(brushSizeOpen)}
+                         onClose={() => setBrushSizeOpen(undefined)}
+                         anchorEl={brushSizeOpen}
+                         anchorOrigin={{
+                             vertical: "bottom",
+                             horizontal: "left",
+                         }}
+                >
+                    <Stack height={300} width={48} my={3} spacing={3} alignItems="center">
+                        <Typography>{brushSize}</Typography>
+                        <Slider orientation="vertical"
+                                defaultValue={30}
+                                min={5}
+                                max={250}
+                                value={brushSize}
+                                aria-label="Brush Size (px)"
+                                onChange={(e) => setBrushSize(e.target.value)}
+                        />
+                    </Stack>
+                </Popover>
+            </Stack>
+            <Tooltip title="Edit image with prompt" placement="bottom-end">
+                <IconButton size="large"
+                            color="primary"
+                            onClick={()=>setEditPromptDialogOpen(true)}
+                >
+                    <Edit/>
+                </IconButton>
+            </Tooltip>
+        </>}
+    </Stack>;
+
     return (<Dialog open={Boolean(prediction)}
-            fullScreen
-            onClick={() => handleClose()}
-            PaperProps={{sx: {backgroundColor: 'transparent'}}}
+                            fullScreen
+                            onClick={() => handleClose()}
+                            PaperProps={{sx: {backgroundColor: 'transparent'}}}
     >
         <div className="bounds-outer">
             <div className="bounds-inner">
                 <div className="a" onClick={(e) => e.stopPropagation()}>
                     {!hasMask && <img src={dataUrl} className="imageOpen"/>}
-                    {hasMask && <MaskEditor src={dataUrl} brushSize={brushSize} canvasRef={canvas}/>}
-                    <IconButton className="floatButton" sx={{position: "absolute"}} size="large" color="primary" onClick={()=>setHasMask(!hasMask)}><Info/></IconButton>
+                    {hasMask && <MaskEditor src={dataUrl}
+                                            cursorSize={brushSize}
+                                            canvasRef={canvas}
+                                            maskColor={theme.palette.primary.main}
+                                            maskBlendMode="hard-light"
+                    />}
+                    <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}>
+                        {EditToolTray}
+                        {EditPromptDialog}
+                    </Stack>
                 </div>
             </div>
         </div>
@@ -122,9 +244,73 @@ function Imagen2() {
                 body: JSON.stringify(body)
             })
             if (!res.ok) throw new Error(await res.text())
-            history.push(await res.json())
+            history.unshift(await res.json())
             setHistory([...history])
             setLoading(false)
+            window.scroll({
+                top: 0,
+                left: 0,
+                behavior: 'smooth'
+            })
+        }
+        catch(err){
+            setError(err.message)
+            setHistory([])
+            setLoading(false)
+        }
+    }
+
+    const handleEdit = async ({baseImage, editPrompt, editNegativePrompt, maskDataUrl}) => {
+        if(editPrompt === "") return
+        setLoading(true)
+        setError("")
+        window.scroll({
+            top: 0,
+            left: 0,
+            behavior: 'smooth'
+        })
+
+       const mask = !maskDataUrl ? undefined : {image: {
+            mimeType: maskDataUrl.split(";")[0].split(":")[1],
+            bytesBase64Encoded: maskDataUrl.split(",")[1]
+        }}
+
+        console.log(maskDataUrl)
+
+        try {
+            const np = editNegativePrompt.length > 0 ? editNegativePrompt : undefined
+            const body = {
+                instances: [{
+                    prompt: editPrompt,
+                    image: {
+                        bytesBase64Encoded: baseImage.bytesBase64Encoded,
+                        mimeType: baseImage.mimeType
+                    },
+                    mask,
+                }],
+                parameters: {
+                    negativePrompt: np,
+                    guidanceScale,
+                    language,
+                    sampleCount: 4,
+                    includeRaiReason: true,
+                    includeSafetyAttributes: true,
+                }
+            }
+            const res = await fetch("/api/generate-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            })
+            if (!res.ok) throw new Error(await res.text())
+            history.unshift(await res.json())
+            setHistory([...history])
+            setLoading(false)
+            window.scroll({
+                top: 0,
+                left: 0,
+                behavior: 'smooth'
+            })
         }
         catch(err){
             setError(err.message)
@@ -253,7 +439,10 @@ function Imagen2() {
 
             <Grid xs={12} spacing={0}>
                 {history.map((predictions, i) => <Predictions key={i} {...{predictions, handlePredictionOpen}}/>)}
-                <PredictionEditDialog prediction={predictionOpen} handleClose={()=>setPredictionOpen("")}/>
+                <PredictionEditDialog prediction={predictionOpen}
+                                      handleClose={()=>setPredictionOpen("")}
+                                      handleEdit={handleEdit}
+                />
             </Grid>
 
             <Grid xs={12}>
