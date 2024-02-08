@@ -298,10 +298,10 @@ function Gemini() {
 
     const harmCategories = () => {
         return [
-            <MenuItem value="BLOCK_LOW_AND_ABOVE">Strong blocking (block "Low" and above)</MenuItem>,
-            <MenuItem value="BLOCK_MED_AND_ABOVE">Medium blocking (block "Medium" and above)</MenuItem>,
-            <MenuItem value="BLOCK_HIGH_AND_ABOVE">Weak blocking (block "High" and above)</MenuItem>,
-            <MenuItem value="BLOCK_NONE">No blocking (allow all)</MenuItem>,
+            <MenuItem value="BLOCK_LOW_AND_ABOVE" key={0}>Strong blocking (block "Low" and above)</MenuItem>,
+            <MenuItem value="BLOCK_MED_AND_ABOVE" key={1}>Medium blocking (block "Medium" and above)</MenuItem>,
+            <MenuItem value="BLOCK_HIGH_AND_ABOVE" key={2}>Weak blocking (block "High" and above)</MenuItem>,
+            <MenuItem value="BLOCK_NONE" key={3}>No blocking (allow all)</MenuItem>,
         ];
     }
 

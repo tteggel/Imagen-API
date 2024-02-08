@@ -1,0 +1,50 @@
+.bounds-outer {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    background: rgba(0, 0,0, 0.75);
+
+}
+
+.bounds-inner {
+    writing-mode: vertical-rl;
+    width: 100%;
+    max-width: 90%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+}
+
+.a {
+    position: relative;
+    flex: 1 0 1px;
+    padding-block-start: 100%;
+}
+
+.a * {
+    writing-mode: horizontal-tb;
+}
+
+@media (max-aspect-ratio: 10/9)  {
+    .bounds-inner {
+        writing-mode: horizontal-tb;
+    }
+}
+
+.imageOpen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    z-index: 50;
+}
+
+.buttonTray {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 50;
+}
