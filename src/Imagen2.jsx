@@ -436,7 +436,7 @@ function Imagen2() {
             </Grid>
 
             <Grid xs={12} md={2}>
-                <Typography><Link href="" target="_blank">Download Prompting Guide (PDF)</Link></Typography>
+                <Typography><Link href="/imagen-prompt-guide.pdf" target="_blank">Download Prompting Guide (PDF)</Link></Typography>
             </Grid>
 
             <Grid xs={12}>
