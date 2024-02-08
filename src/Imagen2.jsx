@@ -435,11 +435,13 @@ function Imagen2() {
                 />
             </Grid>
 
-            <Grid xs={12} md={2}>
-                <Typography>
-                    <Link href="https://docs.google.com/document/d/1WKlPozemDR1kE2IBxeM882KxKJZNn06qVpI3e4RtUyU/edit" target="_blank">View Prompting Guide</Link>
-                </Typography>
-            </Grid>
+            {import.meta.env.PROMPT_GUIDE_LINK &&
+                <Grid xs={12} md={2}>
+                    <Typography>
+                        <Link href={import.meta.env.PROMPT_GUIDE_LINK} target="_blank">View Prompting Guide</Link>
+                    </Typography>
+                </Grid>
+            }
 
             <Grid xs={12}>
                 <Stack spacing={2}
