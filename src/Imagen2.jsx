@@ -1,8 +1,6 @@
-import React, {useEffect, useLayoutEffect, useState} from "react"
+import React, {useState} from "react"
 import "./App.css"
 import {
-    Backdrop,
-    Box,
     Button,
     Dialog, DialogContent, DialogContentText, DialogTitle,
     FormControl, IconButton,
@@ -23,8 +21,8 @@ import LoadingSpinner from "./LoadingSpinner"
 import {Info, Brush, LineWeight, Close} from "@mui/icons-material"
 import {MaskEditor, toMask} from "./MaskEditor.jsx"
 import "./Imagen2.css"
-import {Edit} from "@mui/icons-material/";
-import {useDebounce} from "react-use";
+import {Edit} from "@mui/icons-material/"
+import {useDebounce} from "react-use"
 
 const RaiReason = ({code}) =>  <Stack
     direction="row"
@@ -216,9 +214,9 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
                     {hasMask && <MaskEditor src={dataUrl}
                                             cursorSize={brushSize}
                                             canvasRef={canvas}
-                                            maskColor={theme.palette.primary.main}
-                                            maskBlendMode="hard-light"
-                    />}
+                                            cursorColor={theme.palette.primary.main}
+                                />
+                    }
                     <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}>
                         {EditToolTray}
                         {EditPromptDialog}
@@ -435,10 +433,10 @@ function Imagen2() {
                 />
             </Grid>
 
-            {import.meta.env.PROMPT_GUIDE_LINK &&
+            {import.meta.env.VITE_PROMPT_GUIDE_LINK &&
                 <Grid xs={12} md={2}>
                     <Typography>
-                        <Link href={import.meta.env.PROMPT_GUIDE_LINK} target="_blank">View Prompting Guide</Link>
+                        <Link href={import.meta.env.VITE_PROMPT_GUIDE_LINK} target="_blank">View Prompting Guide</Link>
                     </Typography>
                 </Grid>
             }

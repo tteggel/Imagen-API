@@ -1,8 +1,7 @@
 // From https://github.com/la-voliere/react-mask-editor with fix for mount/unmount
 
-import * as React from "react"
-import "./MaskEditor.css"
-import {Box, Stack} from "@mui/material";
+import * as React from "react";
+import "./MaskEditor.css";
 import {useDebounce} from "react-use";
 
 export const MaskEditorDefaults = {
@@ -52,7 +51,7 @@ export const toMask = (canvas) => {
 export const MaskEditor = (props) => {
     const src = props.src;
     const cursorSize = props.cursorSize ?? MaskEditorDefaults.cursorSize;
-    const cursorColor = props.maskColor ?? MaskEditorDefaults.maskColor;
+    const cursorColor = props.cursorColor ?? MaskEditorDefaults.cursorColor;
 
     const canvas = React.useRef(null);
     const maskCanvas = React.useRef(null);
@@ -90,7 +89,7 @@ export const MaskEditor = (props) => {
     React.useLayoutEffect(() => {
         if (src && context) {
             const img = new Image;
-            img.onload = evt => {
+            img.onload = () => {
                 context?.drawImage(img, 0, 0);
             }
             img.src = src;

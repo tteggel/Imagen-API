@@ -9,7 +9,7 @@ import {
 import LoadingSpinner from "./LoadingSpinner.jsx"
 import React, {useEffect, useState} from "react"
 import Grid from "@mui/material/Unstable_Grid2"
-import {Textsms, AddCircle, DeleteForever, Info, CheckCircle, Close} from "@mui/icons-material"
+import {Textsms, DeleteForever, Info, CheckCircle, Close} from "@mui/icons-material"
 import Markdown from "./Markdown.jsx"
 import {AddPhotoAlternate, ClearAll, ArrowDropDown, IosShare, Edit} from "@mui/icons-material/"
 import {useDebounce, useLocalStorage} from "react-use"

@@ -12,7 +12,7 @@ This should Just Work™ but you might need to give your Cloud Run service accou
    GOOGLE_CLOUD_PROJECT=<your Goole Cloud project name>
    GOOGLE_CLOUD_REGION=<the region your CLOUD_RUN_SERVICE is in>
    CLOUD_RUN_SERVICE=<the name of your service>
-   PROMPT_GUIDE_LINK=<optional link to docs>
+   VITE_PROMPT_GUIDE_LINK=<optional link to docs>
    ```
 2. Source your .env e.g. in bash
    ```shell
@@ -32,6 +32,7 @@ This should Just Work™ but you might need to give your Cloud Run service accou
    gcloud run deploy ${CLOUD_RUN_SERVICE} \
      --image ${GOOGLE_CLOUD_REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/cloud-run-source-deploy/sandbox-ai:latest \
      --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}" \
-     --set-env-vars "PROMPT_GUIDE_LINK=${PROMPT_GUIDE_LINK}" \
+     --set-env-vars "VITE_PROMPT_GUIDE_LINK=${VITE_PROMPT_GUIDE_LINK}" \
      --region ${GOOGLE_CLOUD_REGION}
    ```
+   
