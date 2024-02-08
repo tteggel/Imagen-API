@@ -8,7 +8,7 @@ import {
     FormControl, IconButton,
     ImageList,
     ImageListItem,
-    InputLabel,
+    InputLabel, Link,
     List,
     ListItemText,
     MenuItem, Modal, Popover,
@@ -20,7 +20,7 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Info, Brush, LineWeight} from "@mui/icons-material"
+import {Info, Brush, LineWeight, Close} from "@mui/icons-material"
 import {MaskEditor, toMask} from "./MaskEditor.jsx"
 import "./Imagen2.css"
 import {Edit} from "@mui/icons-material/";
@@ -75,7 +75,6 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
     const [editPrompt, setEditPrompt] = useState("")
     const [editNegativePrompt, setEditNegativePrompt] = useState("")
 
-
     const theme = useTheme()
 
     const canvas = React.useRef()
@@ -87,11 +86,12 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
     }, 1500, [brushSize])
 
     const  submitEditPrompt = () => {
+        const mask = toMask(canvas.current)
         handleEdit({
             baseImage: prediction,
             editPrompt,
             editNegativePrompt,
-            maskDataUrl: !hasMask ? undefined : toMask(canvas.current)
+            maskDataUrl: mask.hasData ? mask.dataUrl : undefined,
         })
         handleClose()
     }
@@ -104,6 +104,7 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
 
     const EditPromptDialog = <Dialog open={editPromptDialogOpen}
                                      onClose={()=>setEditPromptDialogOpen(false)}
+                                     autoFocus
                              >
         <DialogTitle>Edit Image</DialogTitle>
         <DialogContent>
@@ -130,6 +131,7 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
                 <Button variant="contained"
                         fullWidth
                         onClick={()=>submitEditPrompt()}
+                        disabled={editPrompt.length <= 0}
                 >
                     Submit Prompt
                 </Button>
@@ -137,13 +139,17 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
         </DialogContent>
     </Dialog>
 
-    const EditToolTray = <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}>
+    const EditToolTray = <Stack direction="row"
+                                className="buttonTray"
+                                sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}
+                                p={1}
+    >
         <Tooltip title={!hasMask ? "Open Image Editing Tools" : "Close Image Editing Tools"} placement="bottom-end">
             <IconButton size="large"
                         color={hasMask ? "primary" : "default"}
                         onClick={() => setHasMask(!hasMask)}
             >
-                <Brush/>
+                {hasMask ? <Close/> : <Brush/>}
             </IconButton>
         </Tooltip>
         {hasMask && <>
@@ -181,6 +187,11 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
                 <IconButton size="large"
                             color="primary"
                             onClick={()=>setEditPromptDialogOpen(true)}
+                            sx={{
+                                backgroundColor: "primary.main",
+                                color: "white",
+                                "&:hover": "primary.main",
+                            }}
                 >
                     <Edit/>
                 </IconButton>
@@ -188,10 +199,15 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
         </>}
     </Stack>;
 
+    const modalCloseFilter = (reason) => () => {
+        if (reason && reason === "click" && hasMask) return
+        handleClose()
+    }
+
     return (<Dialog open={Boolean(prediction)}
-                            fullScreen
-                            onClick={() => handleClose()}
-                            PaperProps={{sx: {backgroundColor: 'transparent'}}}
+                    fullScreen
+                    onClick={modalCloseFilter("click")}
+                    PaperProps={{sx: {backgroundColor: 'transparent'}}}
     >
         <div className="bounds-outer">
             <div className="bounds-inner">
@@ -207,6 +223,20 @@ const PredictionEditDialog = ({prediction, handleClose, handleEdit}) => {
                         {EditToolTray}
                         {EditPromptDialog}
                     </Stack>
+                    <Tooltip title="Close Image" placement="bottom-end">
+                        <IconButton size="large"
+                                    color="primary"
+                                    onClick={modalCloseFilter("close")}
+                                    sx={{
+                                        position: "absolute",
+                                        top: 0,
+                                        right: 0,
+                                        zIndex: 100,
+                                    }}
+                        >
+                            <Close/>
+                        </IconButton>
+                    </Tooltip>
                 </div>
             </div>
         </div>
@@ -236,6 +266,8 @@ function Imagen2() {
                     sampleCount: 4,
                     includeRaiReason: true,
                     includeSafetyAttributes: true,
+                    disablePersonFace: false,
+                    disableChild: false,
                 }
             }
             const res = await fetch("/api/generate-image", {
@@ -274,9 +306,7 @@ function Imagen2() {
             mimeType: maskDataUrl.split(";")[0].split(":")[1],
             bytesBase64Encoded: maskDataUrl.split(",")[1]
         }}
-
-        console.log(maskDataUrl)
-
+        
         try {
             const np = editNegativePrompt.length > 0 ? editNegativePrompt : undefined
             const body = {
@@ -295,8 +325,11 @@ function Imagen2() {
                     sampleCount: 4,
                     includeRaiReason: true,
                     includeSafetyAttributes: true,
+                    disablePersonFace: false,
+                    disableChild: false,
                 }
             }
+
             const res = await fetch("/api/generate-image", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -402,6 +435,10 @@ function Imagen2() {
                 />
             </Grid>
 
+            <Grid xs={12} md={2}>
+                <Typography><Link href="" target="_blank">Download Prompting Guide (PDF)</Link></Typography>
+            </Grid>
+
             <Grid xs={12}>
                 <Stack spacing={2}
                        direction="row"
@@ -410,7 +447,7 @@ function Imagen2() {
                     <FormControl fullWidth>
                         <InputLabel id="strength-slider">Prompt strength</InputLabel>
                         <Slider min={0}
-                                max={50}
+                                max={30}
                                 value={guidanceScale}
                                 aria-labelledby="strength-slider"
                                 valueLabelDisplay="auto"

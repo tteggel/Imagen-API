@@ -7,8 +7,7 @@ import {useDebounce} from "react-use";
 
 export const MaskEditorDefaults = {
     cursorSize: 10,
-    maskOpacity: .85,
-    maskColor: "#23272d",
+    cursorColor: "#ffffffff",
 }
 
 const hexToRgb = (color) => {
@@ -47,15 +46,13 @@ export const toMask = (canvas) => {
     }
     ctx.putImageData(imageData, 0, 0);
 
-    return dataUrl;
+    return {dataUrl, hasData};
 }
-
 
 export const MaskEditor = (props) => {
     const src = props.src;
     const cursorSize = props.cursorSize ?? MaskEditorDefaults.cursorSize;
-    const maskColor = props.maskColor ?? MaskEditorDefaults.maskColor;
-    const maskOpacity = props.maskOpacity ?? MaskEditorDefaults.maskOpacity;
+    const cursorColor = props.maskColor ?? MaskEditorDefaults.maskColor;
 
     const canvas = React.useRef(null);
     const maskCanvas = React.useRef(null);
@@ -76,7 +73,7 @@ export const MaskEditor = (props) => {
         if (maskCanvas.current && !context) {
             const ctx = (maskCanvas.current).getContext("2d");
             if (ctx) {
-                ctx.fillStyle = "#ffffff";
+                ctx.fillStyle = "#00000ff";
                 ctx.fillRect(0, 0, size.x, size.y);
             }
             setMaskContext(ctx);
@@ -119,8 +116,8 @@ export const MaskEditor = (props) => {
                 cursorContext.clearRect(0, 0, size.x, size.y);
 
                 cursorContext.beginPath();
-                cursorContext.fillStyle = `${maskColor}88`;
-                cursorContext.strokeStyle = maskColor;
+                cursorContext.fillStyle = `${cursorColor}88`;
+                cursorContext.strokeStyle = cursorColor;
                 cursorContext.arc(x, y, cursorSize, 0, 360);
                 cursorContext.fill();
                 cursorContext.stroke();
@@ -152,7 +149,7 @@ export const MaskEditor = (props) => {
             cursorCanvas.current?.removeEventListener("mouseenter", onmouseenter);
             cursorCanvas.current?.removeEventListener("mouseleave", onmouseleave);
         }
-    }, [cursorContext, maskContext, cursorCanvas, cursorSize, maskColor, size]);
+    }, [cursorContext, maskContext, cursorCanvas, cursorSize, cursorColor, size]);
 
     const replaceMaskColor = React.useCallback((hexColor, invert) => {
         const imageData = maskContext?.getImageData(0, 0, size.x, size.y);
@@ -169,20 +166,20 @@ export const MaskEditor = (props) => {
         }
     }, [maskContext]);
 
-    React.useEffect(() => replaceMaskColor(maskColor, false), [maskColor]);
+    React.useEffect(() => replaceMaskColor(cursorColor, false), [cursorColor]);
 
     const cursorSizePreview = () => {
         if(cursorContext === null) return;
 
         cursorContext.clearRect(0, 0, size.x, size.y);
         cursorContext.beginPath();
-        cursorContext.fillStyle = `${maskColor}ff`;
-        cursorContext.strokeStyle = maskColor;
+        cursorContext.fillStyle = `${cursorColor}ff`;
+        cursorContext.strokeStyle = cursorColor;
         cursorContext.arc(size.x/2, size.y/2, cursorSize, 0, 360);
         cursorContext.fill();
         cursorContext.stroke();
     };
-    React.useEffect(cursorSizePreview, [cursorSize, cursorContext]);
+    React.useEffect(cursorSizePreview, [cursorSize]);
     useDebounce(()=> {
         if(cursorContext === null) return
         cursorContext.clearRect(0, 0, size.x, size.y);
@@ -194,8 +191,6 @@ export const MaskEditor = (props) => {
                 width={size.x}
                 height={size.y}
                 style={{
-                    maxWidth: size.x,
-                    maxHeight: size.y,
                     zIndex: 10,
                 }}
             />
@@ -204,11 +199,9 @@ export const MaskEditor = (props) => {
                 width={size.x}
                 height={size.y}
                 style={{
-                    maxWidth: size.x,
-                    maxHeight: size.y,
                     zIndex: 20,
-                    opacity: maskOpacity,
-                    mixBlendMode: "plus-lighter",
+                    opacity: 0.75,
+                    mixBlendMode: "difference",
                 }}
             />
             <canvas
@@ -216,8 +209,6 @@ export const MaskEditor = (props) => {
                 width={size.x}
                 height={size.y}
                 style={{
-                    maxWidth: size.x,
-                    maxHeight: size.y,
                     zIndex: 30,
                 }}
                 onContextMenu={(e)=>{e.preventDefault(); return false}}
