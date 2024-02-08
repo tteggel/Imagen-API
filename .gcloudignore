@@ -4,3 +4,4 @@ dist
 .gitignore
 README.md
 .git
+.idea

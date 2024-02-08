@@ -5,7 +5,7 @@ A UI for interacting with Google Imagen2 and Gemini Pro models.
 Inspired by: https://github.com/rk-man/Imagen-API
 
 ## Build and deploy to your Google Cloud project
-This should Just Work™ but you might need to give your Cloud Run service account some extra permissions. Here are some docs to help you:
+This should Just Work™ but you might need to give your Cloud Run service account some extra permissions and you'll definitely need to have enabled the Vertex API.
 
 1. Make a .env
    ```shell
