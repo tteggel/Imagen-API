@@ -32,7 +32,6 @@ This should Just Work™ but you might need to give your Cloud Run service accou
    gcloud run deploy ${CLOUD_RUN_SERVICE} \
      --image ${GOOGLE_CLOUD_REGION}-docker.pkg.dev/${GOOGLE_CLOUD_PROJECT}/cloud-run-source-deploy/sandbox-ai:latest \
      --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}" \
-     --set-env-vars "VITE_PROMPT_GUIDE_LINK=${VITE_PROMPT_GUIDE_LINK}" \
      --region ${GOOGLE_CLOUD_REGION}
    ```
    

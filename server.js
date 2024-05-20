@@ -17,77 +17,75 @@ router.use(express.urlencoded({ extended: true, limit: "500mb" }))
 router.use(express.static("dist"))
 
 router.post("/api/generate-image", (req, res) => {
-    generateImages(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
+  generateImages(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
 })
 
 router.post("/api/generate-text", (req, res) => {
-    generateText(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
+  generateText(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
 })
 
 router.get('/*', (req, res) => {
-    res.sendFile(pathJoin(import.meta.dirname, '/dist/index.html'))
+  res.sendFile(pathJoin(import.meta.dirname, '/dist/index.html'))
 })
 
 app.use('/ai', router)
 app.use('/', router)
 
 app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`)
+  console.log(`Server listening at http://localhost:${port}`)
 })
 
 const generateImages = async (rq) => {
-    const token = await auth.getAccessToken()
+  const token = await auth.getAccessToken()
 
-    const version = rq?.instances?.some((instance)=>instance?.image !== undefined) ?? false ? "002" : "005"
+  const version = "006"
 
-    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@${version}:predict`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization:`Bearer ${token}`,
-            },
-            body: JSON.stringify(rq)
-        }
-    )
-    if (!rs.ok) throw new Error().stack = await rs.text()
+  const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@${version}:predict`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization:`Bearer ${token}`,
+      },
+      body: JSON.stringify(rq)
+    }
+  )
+  if (!rs.ok) throw new Error().stack = await rs.text()
 
-    const body = await rs.json()
+  const body = await rs.json()
 
-    if ((body?.predictions?.length ?? 0) === 0) throw new Error().stack = "Response from Google contained no images."
+  if ((body?.predictions?.length ?? 0) === 0) throw new Error().stack = "Response from Google contained no images."
 
-    return body.predictions
-}
-
-const needsVisionModel = (rq) => {
-    return rq.contents.some(content => content.parts.some(part => part.inlineData !== undefined)) ? "-vision" : ""
+  return body.predictions
 }
 
 const generateText = async (rq) => {
-    const token = await auth.getAccessToken()
+  const token = await auth.getAccessToken()
 
-    const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/gemini-pro${needsVisionModel(rq)}:streamGenerateContent?alt=sse`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization:`Bearer ${token}`,
-            },
-            body: JSON.stringify(rq)
-        }
-    )
+  const modelId = "gemini-1.5-pro-preview-0514"
 
-    if (!rs.ok) throw new Error().stack = await rs.text()
-
-    try {
-        const raw = await rs.text()
-        const lines = raw.split("\r\n")
-        const trimmed = lines.map(line => line.slice(6)).filter(line => line.length > 0)
-        const jsons = trimmed.map(trim => JSON.parse(trim))
-        return {role:"model", parts: [{text:jsons.reduce((p, c) => p + (c?.candidates?.[0]?.content?.parts?.[0]?.text ?? ""), "")}]}
+  const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/${modelId}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization:`Bearer ${token}`,
+      },
+      body: JSON.stringify(rq)
     }
-    catch (err) {
-        console.log(err)
-        throw new Error().stack = err.message
-    }
+  )
+
+  if (!rs.ok) throw new Error().stack = await rs.text()
+
+  try {
+    const raw = await rs.text()
+    const lines = raw.split("\r\n")
+    const trimmed = lines.map(line => line.slice(6)).filter(line => line.length > 0)
+    const jsons = trimmed.map(trim => JSON.parse(trim))
+    return {role:"model", parts: [{text:jsons.reduce((p, c) => p + (c?.candidates?.[0]?.content?.parts?.[0]?.text ?? ""), "")}]}
+  }
+  catch (err) {
+    console.log(err)
+    throw new Error().stack = err.message
+  }
 }
