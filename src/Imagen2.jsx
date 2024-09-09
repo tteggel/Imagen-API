@@ -1,8 +1,8 @@
 import {useState} from "react"
 import "./App.css"
 import {
-  Button,
-  FormControl,
+  Button, Checkbox,
+  FormControl, FormControlLabel,
   ImageList,
   ImageListItem,
   InputLabel,
@@ -18,7 +18,7 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Brush, Info} from "@mui/icons-material"
+import {Brush, CheckBox, Info} from "@mui/icons-material"
 import "./Imagen2.css"
 import PropTypes from "prop-types"
 import {ImageEditDialog} from "./ImageEditDialog.jsx";
@@ -74,6 +74,7 @@ function Imagen2() {
   const [language, setLanguage] = useState("auto")
   const [error, setError] = useState("")
   const [predictionOpen, setPredictionOpen] = useState("")
+  const [fast, setFast] = useState(false)
 
   const callApi = async (body) => {
     const res = await fetch("/api/generate-image", {
@@ -105,9 +106,10 @@ function Imagen2() {
           sampleCount: 4,
           includeRaiReason: true,
           includeSafetyAttributes: true,
-          personGeneration: "allow_adult",
+          personGeneration: "allow_all",
           safetySetting: "block_most",
-        }
+        },
+        fast
       }
       await callApi(body)
     }
@@ -170,7 +172,7 @@ function Imagen2() {
           disablePersonFace: false,
           disableChild: false,
           safetySetting: "block_most",
-          personGeneration: "allow_adult",
+          personGeneration: "allow_all",
           editConfig: {
             editMode,
             guidanceScale,
@@ -186,7 +188,6 @@ function Imagen2() {
           body.parameters.editConfig.maskMode.classes = maskClasses.map(c => c.key)
         }
       }
-      console.log(body)
       await callApi(body)
     }
     catch(err){
@@ -279,13 +280,10 @@ function Imagen2() {
           />
         </Grid>
 
-        {import.meta.env.VITE_PROMPT_GUIDE_LINK &&
-          <Grid xs={12} md={2}>
-            <Typography>
-              <Link href={import.meta.env.VITE_PROMPT_GUIDE_LINK} target="_blank">View Prompting Guide</Link>
-            </Typography>
-          </Grid>
-        }
+        <Grid xs={12} md={2} sx={{justifyContent: "center", display: "flex", flexDirection: "column"}} >
+          <FormControlLabel control={<Checkbox value={fast} onChange={e => setFast(e.target.checked)}/>} label="Fast?" />
+        </Grid>
+
 
         <Grid xs={12}>
           <Stack spacing={2}

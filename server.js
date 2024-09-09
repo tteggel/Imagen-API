@@ -37,8 +37,9 @@ app.listen(port, () => {
 
 const generateImages = async (rq) => {
   const token = await auth.getAccessToken()
-
-  const version = rq?.parameters?.editConfig ? "imagegeneration@006"  : "imagen-3.0-generate-001"
+  
+  const version = rq?.parameters?.editConfig ? "imagegeneration@006"  : `imagen-3.0${rq.fast ? "-fast" : ""}-generate-001`
+  delete rq.fast
 
   const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/${version}:predict`,
     {
