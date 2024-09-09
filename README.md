@@ -9,6 +9,7 @@ This should Just Work™ but you might need to give your Cloud Run service accou
 
 1. Make a .env
    ```shell
+   CLOUDSDK_CORE_PROJECT=<your Goole Cloud project name>
    GOOGLE_CLOUD_PROJECT=<your Goole Cloud project name>
    GOOGLE_CLOUD_REGION=<the region your CLOUD_RUN_SERVICE is in>
    CLOUD_RUN_SERVICE=<the name of your service>

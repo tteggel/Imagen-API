@@ -118,6 +118,24 @@ function Imagen2() {
     }
   }
 
+  const resizeImage = (baseImage, {width, height}) => {
+    const canvas = document.createElement('canvas'),
+    ctx = canvas.getContext('2d'),
+    image = new Image()
+    image.src = `data:${baseImage.mimeType};base64,${baseImage.bytesBase64Encoded}`
+
+    canvas.width = width
+    canvas.height = height
+
+    ctx.drawImage(image, 0, 0, width, height)
+
+    const dataUrl = canvas.toDataURL()
+    return {
+      mimeType: dataUrl.split(";")[0].split(":")[1],
+      bytesBase64Encoded: dataUrl.split(",")[1]
+    }
+  }
+
   const handleEdit = async ({baseImage, editMode, maskType, maskClasses, editPrompt, editNegativePrompt, maskDataUrl}) => {
     setPredictionOpen(false)
     setLoading(true)
@@ -133,15 +151,14 @@ function Imagen2() {
         bytesBase64Encoded: maskDataUrl.split(",")[1]
       }}
 
+    const resizedImage = resizeImage(baseImage, {width: 1536, height: 1536})
+
     try {
       const np = editNegativePrompt.length > 0 ? editNegativePrompt : undefined
       const body = {
         instances: [{
           prompt: editPrompt,
-          image: {
-            bytesBase64Encoded: baseImage.bytesBase64Encoded,
-            mimeType: baseImage.mimeType
-          },
+          image: resizedImage,
         }],
         parameters: {
           negativePrompt: np,
