@@ -248,13 +248,18 @@ function Gemini() {
   const generateText = async () => {
     const rq = {
       contents: history,
-      generationConfig: {temperature, topP, topK},
+      generationConfig: {
+        temperature,
+        topP,
+        topK,
+      },
       safetySettings: [
         {category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: sexuallyExplicitThreshold},
         {category: "HARM_CATEGORY_HATE_SPEECH", threshold: hateSpeechThreshold},
         {category: "HARM_CATEGORY_HARASSMENT", threshold: harassmentThreshold},
         {category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: dangerousContentThreshold}
-      ]
+      ],
+      tools: {googleSearch: {}},
     }
     try {
       const rs = await fetch("/api/generate-text", {

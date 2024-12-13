@@ -37,8 +37,8 @@ app.listen(port, () => {
 
 const generateImages = async (rq) => {
   const token = await auth.getAccessToken()
-  
-  const version = rq?.parameters?.editConfig ? "imagegeneration@006"  : `imagen-3.0${rq.fast ? "-fast" : ""}-generate-001`
+
+  const version = rq?.parameters?.editConfig ? "imagen-3.0-capability-001"  : `imagen-3.0${rq.fast ? "-fast" : ""}-generate-001`
   delete rq.fast
 
   const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/${version}:predict`,
@@ -63,7 +63,7 @@ const generateImages = async (rq) => {
 const generateText = async (rq) => {
   const token = await auth.getAccessToken()
 
-  const modelId = "gemini-1.5-pro-preview-0514"
+  const modelId = "gemini-2.0-flash-exp"
 
   const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/${modelId}:streamGenerateContent?alt=sse`,
     {
