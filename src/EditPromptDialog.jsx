@@ -18,7 +18,7 @@ export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit
   const [editPrompt, setEditPrompt] = useState("")
   const [editNegativePrompt, setEditNegativePrompt] = useState("")
   const [editMode, setEditMode] = useState("EDIT_MODE_DEFAULT")
-  const [maskType, setMaskType] = useState(mask && mask.hasData ? "MASK_MODE_USER_PROVIDED" : "MASK_MODE_BACKGROUND")
+  const [maskType, setMaskType] = useState(mask?.hasData ? "MASK_MODE_USER_PROVIDED" : "MASK_MODE_BACKGROUND")
   const [maskClasses, setMaskClasses] = useState([])
 
   const submitEditPrompt = () => {
@@ -89,12 +89,11 @@ export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit
             color="primary"
             onChange={(e, v) => v !== null ? setMaskType(v) : undefined}
           >
-            {mask?.hasData &&
-              <ToggleButton
-                value="MASK_MODE_USER_PROVIDED"
-                aria-label="Painted Area"
-              >Painted</ToggleButton>
-            }
+            <ToggleButton
+              value="MASK_MODE_USER_PROVIDED"
+              aria-label="Painted Area"
+              disabled={!mask?.hasData}
+            >Painted</ToggleButton>
             <ToggleButton
               value="MASK_MODE_BACKGROUND"
               aria-label="Background"

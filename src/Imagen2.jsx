@@ -1,4 +1,4 @@
-import {useState, useRef} from "react"
+import {useState, useRef, useEffect} from "react"
 import "./App.css"
 import {
   Button, Checkbox,
@@ -17,10 +17,31 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Brush, Info, Upload} from "@mui/icons-material"
+import {Brush, Info, Upload, ClearAll} from "@mui/icons-material"
 import "./Imagen2.css"
 import PropTypes from "prop-types"
-import {ImageEditDialog} from "./ImageEditDialog.jsx";
+import {ImageEditDialog} from "./ImageEditDialog.jsx"
+import {useDebounce} from "react-use"
+import {useLocation, useNavigate} from "react-router-dom"
+import {Buffer} from "buffer/"
+import setupIndexedDB, { useIndexedDBStore } from "use-indexeddb"
+
+const idbConfig = {
+  databaseName: "imagen2-db",
+  version: 1,
+  stores: [
+    {
+      name: "state",
+      id: { keyPath: "route" },
+      indices: [],
+    },
+    {
+      name: "history",
+      id: { keyPath: "id", autoIncrement: true },
+      indices: [],
+    },
+  ],
+}
 
 const RaiReason = ({code}) =>  <Stack
   direction="row"
@@ -65,6 +86,7 @@ Predictions.propTypes = {
 }
 
 function Imagen2() {
+  const [loadingState , setLoadingState] = useState(false)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(false)
   const [prompt, setPrompt] = useState("")
@@ -75,6 +97,67 @@ function Imagen2() {
   const [predictionOpen, setPredictionOpen] = useState("")
   const [fast, setFast] = useState(false)
   const fileInputRef = useRef(null)
+ 
+  const {update: updatePersistedState, getByID: getPersistedState} = useIndexedDBStore("state")
+  const {update: updatePersistedHistory, getAll: getPersistedHistory} = useIndexedDBStore("history")
+
+  const {pathname} = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {setupIndexedDB(idbConfig)}, [])
+
+  const [,] = useDebounce(
+    () => {
+      updatePersistedState({route: "imagen", state: serialiseState()})
+      console.log(history)
+      history.slice(0, 10).forEach((history, id) => updatePersistedHistory({id, history}))
+    },
+    1000,
+    [
+      history,
+      prompt,
+      negativePrompt,
+      guidanceScale,
+      language,
+      fast,
+    ]
+  )
+  const serialiseState = () => {
+    return Buffer.from(JSON.stringify({
+      prompt,
+      negativePrompt,
+      guidanceScale,
+      language,
+      fast,
+    })).toString('base64')
+  }
+  useEffect(() => {
+    async function loadState() {
+      setLoadingState(true)
+      try {
+        const {state} = await getPersistedState("imagen")
+        if (state !== undefined) {
+          const j = JSON.parse(Buffer.from(state, "base64").toString())
+          setPrompt(j.prompt ?? "")
+          setNegativePrompt(j.negativePrompt ?? "")
+          setGuidanceScale(j.guidanceScale ?? 60)
+          setLanguage(j.language ?? "auto")
+          setFast(j.fast ?? false)
+        }
+
+        const persistedHistory = await getPersistedHistory()
+        console.log(persistedHistory)
+        if (persistedHistory.length > 0) { 
+          setHistory(persistedHistory.map(h => h.history))
+        }
+      }
+      finally {
+        setLoadingState(false)
+      }
+    }
+    loadState()
+  }, [navigate, pathname, getPersistedState, getPersistedHistory]
+  )
 
   const callApi = async (body) => {
     const res = await fetch("/api/generate-image", {
@@ -83,9 +166,8 @@ function Imagen2() {
       body: JSON.stringify(body)
     })
     if (!res.ok) throw new Error(await res.text())
-    history.unshift(await res.json())
-    setHistory([...history])
-    console.log(history)
+    const newItem = await res.json()
+    setHistory([newItem, ...history])
     setLoading(false)
     window.scroll({
       top: 0,
@@ -117,7 +199,7 @@ function Imagen2() {
     catch(err){
       console.error(err, err.stack)
       setError(err)
-      setHistory([])
+      //setHistory([])
       setLoading(false)
     }
   }
@@ -212,7 +294,7 @@ function Imagen2() {
     catch(err){
       console.error(err, err.stack)
       setError(err)
-      setHistory([])
+      //setHistory([])
       setLoading(false)
     }
   }
@@ -284,7 +366,17 @@ function Imagen2() {
     }
   }
 
+  const clearAll = () => {
+    setHistory([])
+    setPrompt("")
+    setNegativePrompt("")
+    setGuidanceScale(60)
+    setLanguage("auto")
+    setFast(false)
+  }
+
   return (
+    loadingState ? <LoadingSpinner/> :
     <form>
       <Grid container spacing={2}>
         <Grid xs={12} md={10}>
@@ -353,7 +445,7 @@ function Imagen2() {
           </Stack>
         </Grid>
 
-        <Grid xs={12} md={4}>
+        <Grid xs={12} md={6}>
           <Stack direction="row" spacing={2}>
             <Button onClick={onFormSubmit}
                     type="submit"
@@ -381,15 +473,16 @@ function Imagen2() {
             >
               Upload
             </Button>
+            <Button onClick={clearAll}
+                  size="large"
+                  variant="outlined"
+                  sx={{pr:5, pl:5}}
+                  disabled={loading}
+                  endIcon={<ClearAll/>}
+          >
+            Clear All
+          </Button>
           </Stack>
-        </Grid>
-
-        <Grid xs={12} spacing={0}>
-          {history.map((predictions, i) => <Predictions key={i} {...{predictions, handlePredictionOpen}}/>)}
-          <ImageEditDialog prediction={predictionOpen}
-                           handleClose={()=>setPredictionOpen("")}
-                           handleEdit={handleEdit}
-          />
         </Grid>
 
         <Grid xs={12}>
@@ -399,6 +492,14 @@ function Imagen2() {
             </Typography>
           }
         </Grid>
+
+        <Grid xs={12} spacing={0}>
+          {history.map((predictions, i) => <Predictions key={i} {...{predictions, handlePredictionOpen}}/>)}
+          <ImageEditDialog prediction={predictionOpen}
+                           handleClose={()=>setPredictionOpen("")}
+                           handleEdit={handleEdit}
+          />
+        </Grid> 
       </Grid>
     </form>
   )
