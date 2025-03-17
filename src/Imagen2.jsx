@@ -6,7 +6,6 @@ import {
   ImageList,
   ImageListItem,
   InputLabel,
-  Link,
   List,
   ListItemText,
   MenuItem,
@@ -18,7 +17,7 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Brush, CheckBox, Info} from "@mui/icons-material"
+import {Brush, Info} from "@mui/icons-material"
 import "./Imagen2.css"
 import PropTypes from "prop-types"
 import {ImageEditDialog} from "./ImageEditDialog.jsx";
@@ -72,7 +71,7 @@ function Imagen2() {
   const [negativePrompt, setNegativePrompt] = useState("")
   const [guidanceScale, setGuidanceScale] = useState(60)
   const [language, setLanguage] = useState("auto")
-  const [error, setError] = useState("")
+  const [error, setError] = useState(null)
   const [predictionOpen, setPredictionOpen] = useState("")
   const [fast, setFast] = useState(false)
 
@@ -107,14 +106,15 @@ function Imagen2() {
           includeRaiReason: true,
           includeSafetyAttributes: true,
           personGeneration: "allow_all",
-          safetySetting: "block_most",
+          safetySetting: "block_low_and_above",
         },
         fast
       }
       await callApi(body)
     }
     catch(err){
-      setError(err.message)
+      console.error(err, err.stack)
+      setError(err)
       setHistory([])
       setLoading(false)
     }
@@ -141,28 +141,61 @@ function Imagen2() {
   const handleEdit = async ({baseImage, editMode, maskType, maskClasses, editPrompt, editNegativePrompt, maskDataUrl}) => {
     setPredictionOpen(false)
     setLoading(true)
-    setError("")
+    setError(null)
     window.scroll({
       top: 0,
       left: 0,
       behavior: 'smooth'
     })
 
-    const mask = !maskDataUrl ? undefined : {image: {
-        mimeType: maskDataUrl.split(";")[0].split(":")[1],
-        bytesBase64Encoded: maskDataUrl.split(",")[1]
-      }}
+    const maskImage = !maskDataUrl ? undefined : {
+      mimeType: maskDataUrl.split(";")[0].split(":")[1],
+      bytesBase64Encoded: maskDataUrl.split(",")[1]
+    }
 
-    const resizedImage = resizeImage(baseImage, {width: 1536, height: 1536})
+    //const resizedImage = resizeImage(baseImage, {width: 1024, height: 1024})
 
+    const referenceImages = [
+      { 
+        referenceId: 1,
+        referenceType: "REFERENCE_TYPE_RAW", 
+        referenceImage: {bytesBase64Encoded: baseImage.bytesBase64Encoded, mimeType: baseImage.mimeType},
+      }
+    ]
+
+    const maskMode = editMode === "EDIT_MODE_BGSWAP" ? "MASK_MODE_BACKGROUND" : 
+                     editMode === "EDIT_MODE_OUTPAINT" ? "MASK_MODE_USER_PROVIDED" :
+                     maskType
+    const maskDilation = (editMode === "EDIT_MODE_INPAINT_INSERTION"  || editMode === "EDIT_MODE_REMOVAL") ? 0.01 :
+                          editMode === "EDIT_MODE_BGSWAP" ? 0.0 : 
+                          0.02  
+
+    const maskConfig = {
+      referenceId: 2, 
+      referenceType: "REFERENCE_TYPE_MASK", 
+      maskImageConfig: {
+        maskMode, 
+        maskDilation,
+      }
+    }
+
+    if (maskImage && editMode !== "EDIT_MODE_BGSWAP" && maskMode === "MASK_MODE_USER_PROVIDED") {
+       maskConfig.referenceImage = {bytesBase64Encoded: maskImage.bytesBase64Encoded, mimeType: maskImage.mimeType}
+    }
+
+    if (maskMode === "MASK_MODE_SEMANTIC") maskConfig.maskImageConfig.maskClasses = maskClasses.map(c => c.key)
+
+    if (editMode !== "EDIT_MODE_DEFAULT") referenceImages.push(maskConfig)
+    
     try {
       const np = editNegativePrompt.length > 0 ? editNegativePrompt : undefined
       const body = {
         instances: [{
-          prompt: editPrompt,
-          image: resizedImage,
+          prompt: editMode === "EDIT_MODE_INPAINT_REMOVAL" ? "" : editPrompt,
+          referenceImages,
         }],
         parameters: {
+          editMode,
           negativePrompt: np,
           guidanceScale,
           language,
@@ -171,27 +204,15 @@ function Imagen2() {
           includeSafetyAttributes: true,
           disablePersonFace: false,
           disableChild: false,
-          safetySetting: "block_most",
+          safetySetting: "block_low_and_above",
           personGeneration: "allow_all",
-          editConfig: {
-            editMode,
-            guidanceScale,
-          }
-        }
-      }
-      if(mask && maskType === "painted") body.instances[0].mask = mask
-      if(maskType !== "painted") {
-        body.parameters.editConfig.maskMode = {
-          maskType,
-        }
-        if (maskClasses && maskType === "semantic") {
-          body.parameters.editConfig.maskMode.classes = maskClasses.map(c => c.key)
         }
       }
       await callApi(body)
     }
     catch(err){
-      setError(err.message)
+      console.error(err, err.stack)
+      setError(err)
       setHistory([])
       setLoading(false)
     }
@@ -200,7 +221,7 @@ function Imagen2() {
   const onFormSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
+    setError(null)
     return generateImages()
   }
 
@@ -329,9 +350,9 @@ function Imagen2() {
         </Grid>
 
         <Grid xs={12}>
-          {error.length > 0 && !loading &&
+          {error !== null && !loading &&
             <Typography sx={{whiteSpace: 'pre-line', fontFamily: 'Monospace', color: 'error.main'}}>
-              {error}
+              {error.toString()}
             </Typography>
           }
         </Grid>

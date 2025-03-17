@@ -22,7 +22,7 @@ export const MaskEditor = (props) => {
   const [context, setContext] = React.useState(null)
   const [maskContext, setMaskContext] = React.useState(null)
   const [cursorContext, setCursorContext] = React.useState(null)
-  const [size, setSize] = React.useState({x: 1536, y: 1536})
+  const [size, setSize] = React.useState({x: 1024, y: 1024})
 
   React.useLayoutEffect(() => {
     if (canvas.current && !context) {

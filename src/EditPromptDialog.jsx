@@ -17,8 +17,8 @@ import PropTypes from "prop-types"
 export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit}) => {
   const [editPrompt, setEditPrompt] = useState("")
   const [editNegativePrompt, setEditNegativePrompt] = useState("")
-  const [editMode, setEditMode] = useState("inpainting-insert")
-  const [maskType, setMaskType] = useState(mask && mask.hasData ? "painted" : "background")
+  const [editMode, setEditMode] = useState("EDIT_MODE_DEFAULT")
+  const [maskType, setMaskType] = useState(mask && mask.hasData ? "MASK_MODE_USER_PROVIDED" : "MASK_MODE_BACKGROUND")
   const [maskClasses, setMaskClasses] = useState([])
 
   const submitEditPrompt = () => {
@@ -42,6 +42,7 @@ export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit
 
   return <Dialog open={open}
                  onClose={handleClose}
+                 maxWidth="md"                
                  autoFocus
   >
     <DialogTitle>Edit Image</DialogTitle>
@@ -57,21 +58,30 @@ export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit
             onChange={(e, v) => v !== null ? setEditMode(v) : undefined}
           >
             <ToggleButton
-              value="inpainting-insert"
-              aria-label="Insert"
-            >Insert</ToggleButton>
+              value="EDIT_MODE_DEFAULT"
+              aria-label="Default"
+            >Default</ToggleButton>
             <ToggleButton
-              value="inpainting-remove"
+              value="EDIT_MODE_INPAINT_INSERTION"
+              aria-label="Insert"
+            >Replace</ToggleButton>
+            <ToggleButton
+              value="EDIT_MODE_INPAINT_REMOVAL"
               aria-label="Remove"
             >Remove</ToggleButton>
             <ToggleButton
-              value="outpainting"
+              value="EDIT_MODE_BGSWAP"
+              aria-label="Background Swap"
+            >Background Swap</ToggleButton>
+            <ToggleButton
+              value="EDIT_MODE_OUTPAINT"
               aria-label="Outpaint"
             >Outpaint</ToggleButton>
           </ToggleButtonGroup>
         </Stack>
+        {(editMode === "EDIT_MODE_INPAINT_INSERTION" || editMode === "EDIT_MODE_INPAINT_REMOVAL") &&
         <Stack direction="row" spacing={2} alignItems="center">
-          <FormLabel>Where?</FormLabel>
+          <FormLabel>What?</FormLabel>
           <ToggleButtonGroup
             value={maskType}
             aria-label="mask type"
@@ -81,29 +91,26 @@ export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit
           >
             {mask?.hasData &&
               <ToggleButton
-                value="painted"
+                value="MASK_MODE_USER_PROVIDED"
                 aria-label="Painted Area"
               >Painted</ToggleButton>
             }
             <ToggleButton
-              value="background"
+              value="MASK_MODE_BACKGROUND"
               aria-label="Background"
             >Background</ToggleButton>
-            {editMode !== "outpainting" &&
-                <ToggleButton
-                value="foreground"
-                aria-label="Foreground"
-              >Foreground</ToggleButton>
-            }
-            {editMode !== "outpainting" &&
-              <ToggleButton
-                value="semantic"
-                aria-label="Semantic"
-              >Semantic</ToggleButton>
-            }
+            <ToggleButton
+              value="MASK_MODE_FOREGROUND"
+              aria-label="Foreground"
+            >Foreground</ToggleButton>
+            <ToggleButton
+              value="MASK_MODE_SEMANTIC"
+              aria-label="Semantic"
+            >Semantic</ToggleButton>
           </ToggleButtonGroup>
         </Stack>
-        {editMode === "inpainting-insert" &&
+        }
+        {(editMode === "EDIT_MODE_INPAINT_INSERTION" || editMode === "EDIT_MODE_DEFAULT" || editMode === "EDIT_MODE_BGSWAP") &&
           <TextField label="Enter your prompt here"
                      variant="outlined"
                      fullWidth
@@ -116,7 +123,7 @@ export const EditPromptDialog = ({open, baseImage, mask, handleClose, handleEdit
                      onKeyDown={handleKeyDown}
           />
         }
-        {maskType === "semantic" &&
+        {maskType === "MASK_MODE_SEMANTIC" &&
           <Stack direction="row" spacing={2} alignItems="center">
             <Autocomplete
               multiple
