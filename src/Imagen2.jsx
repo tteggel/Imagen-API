@@ -453,7 +453,7 @@ function Imagen2() {
                     variant="contained"
                     disabled={prompt.length <= 0 || loading}
                     endIcon={loading?<LoadingSpinner/>:<Brush/>}
-                    sx={{flex: 1}}
+                    sx={{pr:2, pl:2}}
             >
               Generate Images
             </Button>
@@ -470,18 +470,19 @@ function Imagen2() {
               variant="outlined"
               disabled={loading}
               endIcon={<Upload/>}
+              sx={{pr:2, pl:2}}
             >
               Upload
             </Button>
             <Button onClick={clearAll}
                   size="large"
                   variant="outlined"
-                  sx={{pr:5, pl:5}}
+                  sx={{pr:2, pl:2}}
                   disabled={loading}
-                  endIcon={<ClearAll/>}
-          >
-            Clear All
-          </Button>
+                  endIcon={<ClearAll/>}                  
+            >
+              Clear All
+            </Button>
           </Stack>
         </Grid>
 
