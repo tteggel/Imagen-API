@@ -17,7 +17,7 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Brush, Info, Upload, ClearAll} from "@mui/icons-material"
+import {Brush, Info, Upload, ClearAll, Draw} from "@mui/icons-material"
 import "./Imagen2.css"
 import PropTypes from "prop-types"
 import {ImageEditDialog} from "./ImageEditDialog.jsx"
@@ -25,6 +25,7 @@ import {useDebounce} from "react-use"
 import {useLocation, useNavigate} from "react-router-dom"
 import {Buffer} from "buffer/"
 import setupIndexedDB, { useIndexedDBStore } from "use-indexeddb"
+import ScribbleDialog from "./ScribbleDialog.jsx"
 
 const idbConfig = {
   databaseName: "imagen2-db",
@@ -96,6 +97,7 @@ function Imagen2() {
   const [error, setError] = useState(null)
   const [predictionOpen, setPredictionOpen] = useState("")
   const [fast, setFast] = useState(false)
+  const [scribbleOpen, setScribbleOpen] = useState(false)
   const fileInputRef = useRef(null)
  
   const {update: updatePersistedState, getByID: getPersistedState} = useIndexedDBStore("state")
@@ -299,6 +301,41 @@ function Imagen2() {
     }
   }
 
+  const handleScribble = async ({scribbleDataUrl, scribblePrompt, scribbleNegativePrompt}) => {
+    setLoading(true)
+    setScribbleOpen(false)
+    setError(null)
+    const np = scribbleNegativePrompt.length > 0 ? scribbleNegativePrompt : undefined
+    const body = {
+      instances: [{
+        prompt: scribblePrompt,
+        referenceImages: [{
+          referenceId: 1,
+          referenceType: "REFERENCE_TYPE_CONTROL",
+          referenceImage: parseDataUrl(scribbleDataUrl),
+          controlImageConfig: {
+            controlType: "CONTROL_TYPE_SCRIBBLE",
+            enableControlImageComputation: false,
+          }
+        }],
+      }],
+      parameters: {
+        editMode: "EDIT_MODE_CONTROLLED_EDITING",
+        negativePrompt: np,
+        guidanceScale,
+        language,
+        sampleCount: 4,
+        includeRaiReason: true,
+        includeSafetyAttributes: true,
+        disablePersonFace: false,
+        disableChild: false,
+        safetySetting: "block_low_and_above",
+        personGeneration: "allow_all",
+      }
+    }
+    await callApi(body)
+  }
+
   const onFormSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -474,6 +511,16 @@ function Imagen2() {
             >
               Upload
             </Button>
+            <Button
+              onClick={() => setScribbleOpen(true)}
+              size="large"
+              variant="outlined"
+              disabled={loading}
+              endIcon={<Draw/>}
+              sx={{pr:2, pl:2}}
+            >
+              Scribble
+            </Button>
             <Button onClick={clearAll}
                   size="large"
                   variant="outlined"
@@ -499,6 +546,11 @@ function Imagen2() {
           <ImageEditDialog prediction={predictionOpen}
                            handleClose={()=>setPredictionOpen("")}
                            handleEdit={handleEdit}
+          />
+          <ScribbleDialog
+            open={scribbleOpen}
+            handleClose={() => setScribbleOpen(false)}
+            handleScribble={handleScribble}
           />
         </Grid> 
       </Grid>

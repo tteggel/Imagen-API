@@ -1,26 +1,21 @@
-import React, {useState} from "react"
+import {useState, useRef} from "react"
 import {Dialog, IconButton, Popover, Slider, Stack, Tooltip, Typography, useTheme} from "@mui/material"
-import {useDebounce} from "react-use"
 import {Brush, Close, Edit, LineWeight} from "@mui/icons-material"
 import {toMask} from "./ToMask.js"
 import {MaskEditor} from "./MaskEditor.jsx"
 import PropTypes from "prop-types"
 import {EditPromptDialog} from "./EditPromptDialog.jsx"
+import {BrushSize} from "./BrushSize.jsx"
 
 export const ImageEditDialog = ({prediction, handleClose, handleEdit}) => {
   const [hasMask, setHasMask] = useState(false)
-  const [brushSizeOpen, setBrushSizeOpen] = useState(false)
   const [brushSize, setBrushSize] = useState(50)
   const [editPromptDialogOpen, setEditPromptDialogOpen] = useState(false)
   const [mask, setMask] = useState(null)
 
   const theme = useTheme()
 
-  const canvas = React.useRef()
-
-  useDebounce(() => {
-    setBrushSizeOpen(false)
-  }, 1500, [brushSize])
+  const canvas = useRef()
 
   if (!prediction) return
   if (prediction.mimeType === undefined || prediction.bytesBase64Encoded === undefined) return
@@ -41,36 +36,7 @@ export const ImageEditDialog = ({prediction, handleClose, handleEdit}) => {
       </IconButton>
     </Tooltip>
     {hasMask && <>
-      <Stack direction="column" spacing={0} maxHeight={300}>
-        <Tooltip title="Brush Size" placement="bottom-end">
-          <IconButton size="large"
-                      color={brushSizeOpen ? "primary" : "default"}
-                      onClick={(e) => setBrushSizeOpen(brushSizeOpen ? undefined : e.currentTarget)}
-          >
-            <LineWeight/>
-          </IconButton>
-        </Tooltip>
-        <Popover open={Boolean(brushSizeOpen)}
-                 onClose={() => setBrushSizeOpen(undefined)}
-                 anchorEl={brushSizeOpen}
-                 anchorOrigin={{
-                   vertical: "bottom",
-                   horizontal: "left",
-                 }}
-        >
-          <Stack height={300} width={48} my={3} spacing={3} alignItems="center">
-            <Typography>{brushSize}</Typography>
-            <Slider orientation="vertical"
-                    defaultValue={30}
-                    min={5}
-                    max={250}
-                    value={brushSize}
-                    aria-label="Brush Size (px)"
-                    onChange={(e) => setBrushSize(e.target.value)}
-            />
-          </Stack>
-        </Popover>
-      </Stack>
+      <BrushSize brushSize={brushSize} setBrushSize={setBrushSize}/>          
       <Tooltip title="Edit image with prompt" placement="bottom-end">
         <IconButton size="large"
                     color="primary"
@@ -108,7 +74,7 @@ export const ImageEditDialog = ({prediction, handleClose, handleEdit}) => {
                                   cursorSize={brushSize}
                                   canvasRef={canvas}
                                   cursorColor={theme.palette.primary.main}
-          />
+                       />
           }
           <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}>
             {EditToolTray}
