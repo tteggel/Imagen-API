@@ -1,4 +1,4 @@
-import {useState} from "react"
+import {useState, useRef} from "react"
 import "./App.css"
 import {
   Button, Checkbox,
@@ -17,7 +17,7 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Unstable_Grid2"
 import LoadingSpinner from "./LoadingSpinner"
-import {Brush, Info} from "@mui/icons-material"
+import {Brush, Info, Upload} from "@mui/icons-material"
 import "./Imagen2.css"
 import PropTypes from "prop-types"
 import {ImageEditDialog} from "./ImageEditDialog.jsx";
@@ -74,6 +74,7 @@ function Imagen2() {
   const [error, setError] = useState(null)
   const [predictionOpen, setPredictionOpen] = useState("")
   const [fast, setFast] = useState(false)
+  const fileInputRef = useRef(null)
 
   const callApi = async (body) => {
     const res = await fetch("/api/generate-image", {
@@ -84,6 +85,7 @@ function Imagen2() {
     if (!res.ok) throw new Error(await res.text())
     history.unshift(await res.json())
     setHistory([...history])
+    console.log(history)
     setLoading(false)
     window.scroll({
       top: 0,
@@ -124,18 +126,17 @@ function Imagen2() {
     const canvas = document.createElement('canvas'),
     ctx = canvas.getContext('2d'),
     image = new Image()
-    image.src = `data:${baseImage.mimeType};base64,${baseImage.bytesBase64Encoded}`
-
-    canvas.width = width
-    canvas.height = height
-
-    ctx.drawImage(image, 0, 0, width, height)
-
-    const dataUrl = canvas.toDataURL()
-    return {
-      mimeType: dataUrl.split(";")[0].split(":")[1],
-      bytesBase64Encoded: dataUrl.split(",")[1]
-    }
+    
+    return new Promise((resolve) => {
+      image.onload = () => {
+        canvas.width = width
+        canvas.height = height
+        ctx.drawImage(image, 0, 0, width, height)
+        const dataUrl = canvas.toDataURL('image/png', 1.0)
+        resolve(parseDataUrl(dataUrl))
+      }
+      image.src = `data:${baseImage.mimeType};base64,${baseImage.bytesBase64Encoded}`
+    })
   }
 
   const handleEdit = async ({baseImage, editMode, maskType, maskClasses, editPrompt, editNegativePrompt, maskDataUrl}) => {
@@ -152,8 +153,6 @@ function Imagen2() {
       mimeType: maskDataUrl.split(";")[0].split(":")[1],
       bytesBase64Encoded: maskDataUrl.split(",")[1]
     }
-
-    //const resizedImage = resizeImage(baseImage, {width: 1024, height: 1024})
 
     const referenceImages = [
       { 
@@ -235,9 +234,9 @@ function Imagen2() {
         </Typography>
         <Typography variant="h6">Suggested values</Typography>
         <List>
-          <ListItemText>0-9: low strength</ListItemText>
-          <ListItemText>10-20: medium strength</ListItemText>
-          <ListItemText>21 or higher: high strength</ListItemText>
+          <ListItemText>0-120: low strength</ListItemText>
+          <ListItemText>121-250: medium strength</ListItemText>
+          <ListItemText>251 or higher: high strength</ListItemText>
         </List>
       </>
     )
@@ -257,6 +256,32 @@ function Imagen2() {
 
   const handlePredictionOpen = (prediction) => {
     setPredictionOpen(prediction)
+  }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    try {
+      setLoading(true)
+      setError(null)
+
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const image = parseDataUrl(e.target.result)
+        const resizedImage = await resizeImage(image, {width: 1024, height: 1024})
+        setHistory([[resizedImage], ...history])
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      console.error(err, err.stack)
+      setError(err)
+    } finally {
+      setLoading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   return (
@@ -329,16 +354,34 @@ function Imagen2() {
         </Grid>
 
         <Grid xs={12} md={4}>
-          <Button onClick={onFormSubmit}
-                  type="submit"
-                  size="large"
-                  variant="contained"
-                  disabled={prompt.length <= 0 || loading}
-                  endIcon={loading?<LoadingSpinner/>:<Brush/>}
-                  fullWidth
-          >
-            Generate Images
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Button onClick={onFormSubmit}
+                    type="submit"
+                    size="large"
+                    variant="contained"
+                    disabled={prompt.length <= 0 || loading}
+                    endIcon={loading?<LoadingSpinner/>:<Brush/>}
+                    sx={{flex: 1}}
+            >
+              Generate Images
+            </Button>
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={handleImageUpload}
+            />
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              size="large"
+              variant="outlined"
+              disabled={loading}
+              endIcon={<Upload/>}
+            >
+              Upload
+            </Button>
+          </Stack>
         </Grid>
 
         <Grid xs={12} spacing={0}>
@@ -359,6 +402,13 @@ function Imagen2() {
       </Grid>
     </form>
   )
+}
+
+function parseDataUrl(dataUrl) {
+  return {
+    mimeType: dataUrl.split(";")[0].split(":")[1],
+    bytesBase64Encoded: dataUrl.split(",")[1]
+  }
 }
 
 export default Imagen2
