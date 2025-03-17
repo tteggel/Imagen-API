@@ -1,7 +1,7 @@
 import {useState, useRef} from "react"
 import {Dialog, Button, TextField, Stack, Tooltip, IconButton, Popover, useTheme} from "@mui/material"
 import PropTypes from "prop-types"
-import {Close, Edit} from "@mui/icons-material"
+import {Close, Done} from "@mui/icons-material"
 import {MaskEditor} from "./MaskEditor"
 import {toMask} from "./ToMask"
 import {BrushSize} from "./BrushSize"
@@ -26,6 +26,8 @@ function ScribbleDialog({open, handleClose, handleScribble, size={width: 1024, h
       setError("Please enter a prompt") 
       return
     }
+    setPromptAnchorEl(null)
+    handleClose()
     handleScribble({
       scribbleDataUrl: canvas.current.toDataURL(),
       scribblePrompt,
@@ -68,11 +70,15 @@ function ScribbleDialog({open, handleClose, handleScribble, size={width: 1024, h
               cursorColor={theme.palette.primary.main}
             />
 
-            <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}}>
+            <Stack direction="row" className="buttonTray" sx={{backgroundColor: "rgba(255, 255, 255, 0.5)"}} p={1}>
               <BrushSize brushSize={brushSize} setBrushSize={setBrushSize}/>
-              <Tooltip title="Edit Prompts">
-                <IconButton onClick={handlePromptClick} color="primary">
-                  <Edit />
+              <Tooltip title="Generate">
+                <IconButton onClick={handlePromptClick} size="large" color="primary"                     sx={{
+                      backgroundColor: "primary.main",
+                      color: "white",
+                      "&:hover": "primary.main",
+                    }}>
+                  <Done />
                 </IconButton>
               </Tooltip>
             </Stack>
@@ -91,7 +97,7 @@ function ScribbleDialog({open, handleClose, handleScribble, size={width: 1024, h
                 horizontal: 'left',
               }}
             >
-              <Stack spacing={2} sx={{p: 2, minWidth: 300}}>
+              <Stack spacing={2} sx={{p: 2, minWidth: 600}}>
                 <TextField
                   label="Prompt"
                   fullWidth
@@ -116,7 +122,7 @@ function ScribbleDialog({open, handleClose, handleScribble, size={width: 1024, h
               </Stack>
             </Popover>
 
-            <Tooltip title="Close Image" placement="bottom-end">
+            <Tooltip title="Close Scribble" placement="bottom-end">
               <IconButton size="large"
                           color="primary"
                           onClick={modalCloseFilter("close")}

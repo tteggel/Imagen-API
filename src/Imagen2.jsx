@@ -111,7 +111,6 @@ function Imagen2() {
   const [,] = useDebounce(
     () => {
       updatePersistedState({route: "imagen", state: serialiseState()})
-      console.log(history)
       history.slice(0, 10).forEach((history, id) => updatePersistedHistory({id, history}))
     },
     1000,
@@ -148,7 +147,6 @@ function Imagen2() {
         }
 
         const persistedHistory = await getPersistedHistory()
-        console.log(persistedHistory)
         if (persistedHistory.length > 0) { 
           setHistory(persistedHistory.map(h => h.history))
         }
