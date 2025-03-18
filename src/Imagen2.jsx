@@ -199,7 +199,6 @@ function Imagen2() {
     catch(err){
       console.error(err, err.stack)
       setError(err)
-      //setHistory([])
       setLoading(false)
     }
   }
@@ -294,7 +293,6 @@ function Imagen2() {
     catch(err){
       console.error(err, err.stack)
       setError(err)
-      //setHistory([])
       setLoading(false)
     }
   }
@@ -303,35 +301,42 @@ function Imagen2() {
     setLoading(true)
     setScribbleOpen(false)
     setError(null)
-    const np = scribbleNegativePrompt.length > 0 ? scribbleNegativePrompt : undefined
-    const body = {
-      instances: [{
-        prompt: scribblePrompt,
-        referenceImages: [{
-          referenceId: 1,
-          referenceType: "REFERENCE_TYPE_CONTROL",
-          referenceImage: parseDataUrl(scribbleDataUrl),
-          controlImageConfig: {
-            controlType: "CONTROL_TYPE_SCRIBBLE",
-            enableControlImageComputation: false,
-          }
+    try {
+      const np = scribbleNegativePrompt.length > 0 ? scribbleNegativePrompt : undefined
+      const body = {
+        instances: [{
+          prompt: scribblePrompt,
+          referenceImages: [{
+            referenceId: 1,
+            referenceType: "REFERENCE_TYPE_CONTROL",
+            referenceImage: parseDataUrl(scribbleDataUrl),
+            controlImageConfig: {
+              controlType: "CONTROL_TYPE_SCRIBBLE",
+              enableControlImageComputation: false,
+            }
+          }],
         }],
-      }],
-      parameters: {
-        editMode: "EDIT_MODE_CONTROLLED_EDITING",
-        negativePrompt: np,
-        guidanceScale,
-        language,
-        sampleCount: 4,
-        includeRaiReason: true,
-        includeSafetyAttributes: true,
-        disablePersonFace: false,
-        disableChild: false,
-        safetySetting: "block_low_and_above",
-        personGeneration: "allow_all",
+        parameters: {
+          editMode: "EDIT_MODE_CONTROLLED_EDITING",
+          negativePrompt: np,
+          guidanceScale,
+          language,
+          sampleCount: 4,
+          includeRaiReason: true,
+          includeSafetyAttributes: true,
+          disablePersonFace: false,
+          disableChild: false,
+          safetySetting: "block_low_and_above",
+          personGeneration: "allow_all",
+        }
       }
+      await callApi(body)
     }
-    await callApi(body)
+    catch(err){
+      console.error(err, err.stack)
+      setError(err)
+      setLoading(false)
+    }
   }
 
   const onFormSubmit = async (e) => {
