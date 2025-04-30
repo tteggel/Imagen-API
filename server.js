@@ -63,7 +63,7 @@ const generateImages = async (rq) => {
 const generateText = async (rq) => {
   const token = await auth.getAccessToken()
 
-  const modelId = "gemini-2.0-flash-exp"
+  const modelId = "gemini-2.5-pro-preview-03-25"
 
   const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/${modelId}:streamGenerateContent?alt=sse`,
     {
