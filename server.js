@@ -38,7 +38,7 @@ app.listen(port, () => {
 const generateImages = async (rq) => {
   const token = await auth.getAccessToken()
 
-  const version = rq?.parameters?.editMode ? "imagen-3.0-capability-001"  : `imagen-3.0${rq.fast ? "-fast" : ""}-generate-002`
+  const version = rq?.parameters?.editMode ? "imagen-3.0-capability-001"  : `imagen-4.0-generate-preview-05-20`
   delete rq.fast
 
   const rs = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/us-central1/publishers/google/models/${version}:predict`,
@@ -55,7 +55,11 @@ const generateImages = async (rq) => {
 
   const body = await rs.json()
 
+
   if ((body?.predictions?.length ?? 0) === 0) throw new Error().stack = "Response from Google contained no images."
+
+  console.log(body.predictions.map(p => p.safetyAttributes))
+
 
   return body.predictions
 }

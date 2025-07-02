@@ -1,0 +1,22 @@
+[project]
+name = "shieldgemma2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "accelerate",
+    "dotenv",
+    "google-cloud-aiplatform[prediction]",
+    "pillow",
+    "sentencepiece",
+    "torch",
+    "transformers",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
