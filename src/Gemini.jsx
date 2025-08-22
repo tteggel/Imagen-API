@@ -264,7 +264,10 @@ function Gemini() {
     try {
       const rs = await fetch("/api/generate-text", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "Accept-Encoding": "gzip, deflate, br"
+        },
         body: JSON.stringify(rq)
       })
       if (!rs.ok) {

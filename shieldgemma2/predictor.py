@@ -35,13 +35,17 @@ class ShieldGemma2Predictor(Predictor):
         logger.info("Processor successfully loaded.")
 
     def preprocess(self, prediction_input):
-        images = [Image.open(io.BytesIO(base64.b64decode(instance["bytesBase64Encoded"]))) for instance in prediction_input["instances"]]
+        images = [Image.open(io.BytesIO(base64.b64decode(instance["bytesBase64Encoded"]))).convert("RGB") 
+                  for instance in prediction_input["instances"]]
         custom_policies = prediction_input["parameters"]["custom_policies"]
         policies = ["dangerous", "sexual", "violence" ] + [policy_name for policy_name in custom_policies.keys()]
         logger.info(f"Policies: {policies}")
         logger.info(f"Custom policies: {custom_policies}")
         
-        processor_output = self.processor(images=images, return_tensors="pt", custom_policies=custom_policies, policies=policies).to(self.model.device)
+        processor_output = self.processor(images=images, 
+                                          return_tensors="pt", 
+                                          custom_policies=custom_policies, 
+                                          policies=policies).to(self.model.device)
         
         # Add policies to the processor output so they're available in predict
         processor_output['policies'] = policies

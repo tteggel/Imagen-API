@@ -1,4 +1,5 @@
 import express from "express"
+import compression from "compression"
 import {GoogleAuth} from "google-auth-library"
 import {configDotenv} from "dotenv"
 import {join as pathJoin} from "path"
@@ -11,6 +12,16 @@ const auth = new GoogleAuth()
 const app = express()
 const router = express.Router()
 
+// Enable gzip compression
+router.use(compression({
+  level: 9, // compression level (1-9, where 9 is best compression)
+  threshold: 1024, // only compress responses larger than 1KB
+  filter: (req, res) => {
+    // compress all responses by default
+    return compression.filter(req, res)
+  }
+}))
+
 router.use(express.json({limit: "500mb"}))
 router.use(express.urlencoded({ extended: true, limit: "500mb" }))
 
@@ -22,6 +33,10 @@ router.post("/api/generate-image", (req, res) => {
 
 router.post("/api/generate-text", (req, res) => {
   generateText(req.body).then(image => res.send(image), err => res.status(400).send(err?.response?.data ?? err))
+})
+
+router.post("/api/assess-image", (req, res) => {
+  assessImage(req.body).then(result => res.send(result), err => res.status(400).send(err?.response?.data ?? err))
 })
 
 router.get('/*', (req, res) => {
@@ -46,6 +61,7 @@ const generateImages = async (rq) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate, br",
         Authorization:`Bearer ${token}`,
       },
       body: JSON.stringify(rq)
@@ -55,11 +71,9 @@ const generateImages = async (rq) => {
 
   const body = await rs.json()
 
-
   if ((body?.predictions?.length ?? 0) === 0) throw new Error().stack = "Response from Google contained no images."
 
   console.log(body.predictions.map(p => p.safetyAttributes))
-
 
   return body.predictions
 }
@@ -74,6 +88,7 @@ const generateText = async (rq) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate, br",
         Authorization:`Bearer ${token}`,
       },
       body: JSON.stringify(rq)
@@ -93,4 +108,26 @@ const generateText = async (rq) => {
     console.log(err)
     throw new Error().stack = err.message
   }
+}
+
+const assessImage = async (rq) => {
+  const token = await auth.getAccessToken()
+
+  const rs = await fetch(`https://europe-west2-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/europe-west2/endpoints/${process.env.SHIELDGEMMA_ENDPOINT_ID}:predict`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate, br",
+        Authorization:`Bearer ${token}`,
+      },
+      body: JSON.stringify(rq)
+    }
+  )
+  
+  if (!rs.ok) throw new Error().stack = await rs.text()
+
+  const body = await rs.json()
+  console.log(JSON.stringify(rq.instances[0].bytesBase64Encoded.length, null, 2))
+  return body
 }
